@@ -1,0 +1,25 @@
+{
+  "watchlist_path": "watchlist.txt",
+  "stock_list": ["6782", "2301", "1303", "3005"],
+  "windows": [1, 5, 20, 60, 120, 240],
+  "db_path": "data/chips.db",
+  "gemini_key_path": "C:/Users/jonathancc_kao/Vibe_Coding/Key_No_Release/gemini_key.txt",
+  "broker_tags_path": "data/broker_tags.json",
+  "output_dir": "reports",
+  "model_name": "gemini-2.5-flash",
+  "log_level": "INFO",
+  "thresholds": {
+    "hoarder_purity_min": 65.0,
+    "hoarder_ratio_min": 1.8,
+    "swing_buy_bias_min": 2.5,
+    "swing_buy_ratio_min": 2.0,
+    "swing_sell_ratio_min": 2.5,
+    "day_trader_ratio_min": 3.0,
+    "vol_surge_ratio": 1.5,
+    "vol_shrink_ratio": 0.85,
+    "inst_strong_net_min": 300,
+    "inst_strong_vol_pct": 0.05,
+    "margin_notable_min": 50,
+    "margin_notable_vol_pct": 0.02
+  }
+}

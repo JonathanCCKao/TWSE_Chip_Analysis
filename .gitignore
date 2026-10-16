@@ -1,0 +1,19 @@
+# Python cache & virtual environments
+__pycache__/
+*.py[cod]
+*$py.class
+.venv/
+venv/
+env/
+
+# Runtime logs & local SQLite DB (optional cache)
+logs/*.log
+
+# Sensitive keys & tokens (never commit)
+.env
+*key*.txt
+*token*.txt
+
+# OS metadata
+.DS_Store
+Thumbs.db

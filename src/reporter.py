@@ -2,6 +2,7 @@ import os
 import re
 import time
 import json
+import hashlib
 import logging
 from datetime import datetime
 from typing import Dict, Any, Optional, List
@@ -776,11 +777,69 @@ HTML_DASHBOARD_TEMPLATE = """<!DOCTYPE html>
 """
 
 class ChipReporter:
-    def __init__(self, key_path: str, model_name: str = "gemini-2.5-flash", output_dir: str = "reports"):
+    def __init__(
+        self,
+        key_path: str,
+        model_name: str = "gemini-2.5-flash",
+        output_dir: str = "reports",
+        db: Any = None,
+        ai_policy: str = "cached",
+    ):
         self.output_dir = output_dir
         self.model_name = model_name
+        self.db = db
+        self.ai_policy = ai_policy
         os.makedirs(output_dir, exist_ok=True)
-        self.client = self._init_client(key_path)
+        self.client = self._init_client(key_path) if ai_policy != "local" else None
+
+    def _compute_data_hash(self, metrics: Dict[str, Any], mode: str) -> str:
+        """計算核心量化數據指紋 (SHA-256)，確保數據未變動時 100% 命中 SQLite AI 快取 (0 Token)"""
+        inst = metrics.get("institutional_summary", {}) or {}
+        margin = metrics.get("margin_summary", {}) or {}
+        disp = metrics.get("dispersion_summary", {}) or {}
+        prof = metrics.get("profile_summary", {}) or {}
+        tech = metrics.get("technical_summary", {}) or {}
+        smart = metrics.get("smart_brokers", {}) or {}
+        w_metrics = metrics.get("windows_metrics", {}) or {}
+
+        target_windows = [1, 5] if mode == "daily" else [1, 5, 20, 60, 120, 240]
+        w_fp = {}
+        for w in target_windows:
+            wm = w_metrics.get(w, {})
+            if wm:
+                w_fp[w] = {
+                    "vwap": round(float(wm.get("vwap_buy_cost", 0.0)), 2),
+                    "b1": wm.get("top_buyers", [{}])[0].get("net_shares", 0) if wm.get("top_buyers") else 0,
+                    "s1": wm.get("top_sellers", [{}])[0].get("net_shares", 0) if wm.get("top_sellers") else 0,
+                }
+
+        payload = {
+            "stock_id": metrics.get("stock_id", ""),
+            "trade_date": metrics.get("trade_date", ""),
+            "mode": mode,
+            "ref_price": round(float(metrics.get("reference_price", 0.0)), 2),
+            "inst_net": inst.get("institutional_total_net", 0),
+            "margin_date": margin.get("iso_date", ""),
+            "margin_diff": margin.get("margin_diff", 0),
+            "ma5": round(float(tech.get("ma5", 0.0) or 0.0), 2),
+            "vol_r": round(float(tech.get("vol_ratio_5", 0.0) or 0.0), 2),
+            "swing_masters": [
+                (s.get("broker_name"), s.get("role"), s.get("net_5d", 0), s.get("net_1d", 0))
+                for s in smart.get("swing_masters", [])[:5]
+            ],
+            "hoarders": [
+                (h.get("broker_name"), h.get("net_shares", 0))
+                for h in smart.get("hoarders", [])[:3]
+            ],
+            "windows": w_fp,
+        }
+        if mode == "weekly":
+            payload["disp_date"] = disp.get("date", "")
+            payload["disp_conc"] = disp.get("concentration_ratio", 0.0)
+            payload["poc"] = (prof.get("poc_low", 0.0), prof.get("poc_high", 0.0))
+
+        raw_str = json.dumps(payload, sort_keys=True, ensure_ascii=False)
+        return hashlib.sha256(raw_str.encode("utf-8")).hexdigest()[:24]
 
     def _init_client(self, key_path: str) -> Optional[genai.Client]:
         if not os.path.exists(key_path):
@@ -1155,7 +1214,7 @@ class ChipReporter:
         hoarders_list = smart_b.get("hoarders", [])
         swing_list = smart_b.get("swing_masters", [])
         h_str = ", ".join([f"{h['broker_name']}({h['period']}日淨買{h['net_shares']:,}張, 純度{h['purity']:.1f}%)" for h in hoarders_list[:3]]) or "無明顯單一囤貨分點"
-        s_str = ", ".join([f"{s['broker_name']}({s['role']})" for s in swing_list[:3]]) or "無極端轉折動作"
+        s_str = "；".join([f"**{s['broker_name']}**（{s['role']}：{s.get('plain_summary') or s.get('desc', '')}）" for s in swing_list[:3]]) or "無極端轉折動作"
 
         if mode == "daily":
             vwap_1 = m1.get("vwap_buy_cost", ref_price)
@@ -1205,7 +1264,7 @@ class ChipReporter:
 * **當日買超前三券商**：{buyers_1}
 * **當日賣超前三券商**：{sellers_1}
 * **極短線量化特徵**：{flags_1}
-* **關鍵主力動態**：
+* **關鍵主力動態（1 年期歷史波段回測認證）**：
   * **🔒 長線囤貨大戶**：{h_str}
   * **🎯 波段神算高手**：{s_str}
 * **短線成本位階**：
@@ -1257,7 +1316,7 @@ class ChipReporter:
 ---
 
 ### 三、關鍵券商波段建倉與真假外資意圖
-* **關鍵神準主力分點**：
+* **關鍵神準主力分點（1 年期歷史波段回測認證）**：
   * **🔒 長線囤貨大戶**：{h_str}
   * **🎯 波段神算高手**：{s_str}
 * **技術面與均線結構**：{derived['ma']['desc']}，成交量為 5 日均量之 {derived['volume']['text']}。
@@ -1304,31 +1363,44 @@ class ChipReporter:
             </div>
             """
 
-        # 2. 波段神算高手列表
+        # 2. 波段神算高手列表 (優先呈現 1 年期歷史波段回測認證高手)
         if swing_masters:
             s_items = ""
             for s in swing_masters:
                 role_str = s.get("role", "")
-                if role_str == "🎯買底神手":
+                if role_str == "🎯波段賣頂神手":
+                    role_badge = '<span class="badge badge-swing-sell">🎯波段賣頂神手 (🚨本波出貨)</span>'
+                    action_color = "#dc2626"
+                elif role_str == "🎯歷史賣頂高手":
+                    role_badge = '<span class="badge badge-swing-sell">🎯歷史賣頂高手 (常駐監控)</span>'
+                    action_color = "#c2410c"
+                elif role_str == "🎯歷史買底神手":
+                    role_badge = '<span class="badge badge-swing-buy">🎯歷史買底神手 (🔥本波抄底)</span>'
+                    action_color = "#2563eb"
+                elif role_str == "🎯歷史抄底高手":
+                    role_badge = '<span class="badge badge-swing-buy">🎯歷史抄底高手 (常駐監控)</span>'
+                    action_color = "#7e22ce"
+                elif role_str == "🎯買底神手":
                     role_badge = '<span class="badge badge-swing-buy">🎯買底神手</span>'
                     action_color = "#7e22ce"
-                    val_display = f"較均價正乖離 +{s.get('bias_pct', 0.0):.1f}%"
                 elif "賣頂" in role_str:
                     role_badge = '<span class="badge badge-swing-sell">🎯波段賣頂</span>'
                     action_color = "#dc2626"
-                    val_display = f"{s.get('period')}日賣超佔比 {s.get('ratio', 0.0):.1f}%"
                 elif "破線調節" in role_str:
                     role_badge = '<span class="badge badge-swing-warn">⚠️破線調節</span>'
                     action_color = "#b91c1c"
-                    val_display = f"{s.get('period')}日賣超佔比 {s.get('ratio', 0.0):.1f}%"
                 elif "波段倒貨" in role_str:
                     role_badge = '<span class="badge badge-swing-warn">⚠️波段倒貨</span>'
                     action_color = "#b91c1c"
-                    val_display = f"{s.get('period')}日賣超佔比 {s.get('ratio', 0.0):.1f}%"
                 else:
                     role_badge = '<span class="badge badge-swing-sell">🎯高檔了結</span>'
                     action_color = "#c2410c"
-                    val_display = f"{s.get('period')}日賣超佔比 {s.get('ratio', 0.0):.1f}%"
+
+                val_display = s.get("val_display") or (
+                    f"較均價正乖離 +{s.get('bias_pct', 0.0):.1f}%"
+                    if "買底" in role_str
+                    else f"{s.get('period')}日賣超佔比 {s.get('ratio', 0.0):.1f}%"
+                )
 
                 s_items += f"""
                 <div class="sb-item">
@@ -1355,7 +1427,7 @@ class ChipReporter:
 
         return f"""
         <div class="section-card">
-            <div class="section-title">🌟 關鍵核心主力分點動態雷達 (長線囤貨大戶 ✕ 波段神算高手)</div>
+            <div class="section-title">🌟 關鍵核心主力分點動態雷達 (長線囤貨大戶 ✕ 1年歷史認證波段高手)</div>
             <div class="smart-brokers-grid">
                 <div class="sb-column">
                     <div class="sb-col-title">
@@ -1368,8 +1440,8 @@ class ChipReporter:
                 </div>
                 <div class="sb-column">
                     <div class="sb-col-title">
-                        <span>🎯 波段神算高手 (關鍵轉折分點)</span>
-                        <span style="font-size:0.8rem;color:var(--text-muted);font-weight:normal;">買底正乖離 / 高檔了結與破線調節</span>
+                        <span>🎯 波段神算高手 (1年期逐日帳本回測認證)</span>
+                        <span style="font-size:0.8rem;color:var(--text-muted);font-weight:normal;">歷史波段轉折勝率 ✕ 本波最新動態</span>
                     </div>
                     <div class="sb-list">
                         {s_items}
@@ -1420,13 +1492,17 @@ class ChipReporter:
         prof = metrics.get("profile_summary", {})
         macro_signals = metrics.get("macro_signals", [])
 
-        # 收集所有買賣券商名稱 (供文章自動高亮)
+        # 收集所有買賣券商名稱 (供文章自動高亮，含 1 年認證高手與囤貨大戶)
         all_brokers = []
         for w, m in raw_windows_data:
             for b in m.get("top_buyers", []):
                 all_brokers.append(b["broker_name"])
             for s in m.get("top_sellers", []):
                 all_brokers.append(s["broker_name"])
+        for h in metrics.get("smart_brokers", {}).get("hoarders", []):
+            all_brokers.append(h["broker_name"])
+        for s in metrics.get("smart_brokers", {}).get("swing_masters", []):
+            all_brokers.append(s["broker_name"])
 
         # 1. 三大法人與融資券 (統一使用 derived_signals 確保全報告零矛盾)
         f_net = inst.get("foreign_buy_net", 0)
@@ -1656,8 +1732,11 @@ class ChipReporter:
             alerts_text = "<br>".join(macro_signals)
             macro_alert_html = f'<div class="macro-alert-box">{alerts_text}</div>'
         elif mode == "daily":
-            # 日報顯示短線隔日沖、法人異常與技術面共振警示
-            daily_alerts = [s for s in macro_signals if ("隔日沖" in s or "量化" in s or "法人" in s or "金叉" in s or "多頭排列" in s or "共振" in s or "出量" in s or "沉澱" in s or "警戒" in s)]
+            # 日報顯示短線隔日沖、1年認證波段高手出貨/抄底、法人異常與技術面共振警示
+            daily_alerts = [
+                s for s in macro_signals
+                if any(k in s for k in ("隔日沖", "量化", "法人", "金叉", "多頭排列", "共振", "出量", "沉澱", "警戒", "賣頂", "抄底", "高檔了結", "破線調節"))
+            ]
             if daily_alerts:
                 macro_alert_html = f'<div class="macro-alert-box">{"<br>".join(daily_alerts)}</div>'
 
@@ -1756,39 +1835,70 @@ class ChipReporter:
                 </div>
                 """
         else:  # weekly
-            if is_bull_align and poc_l > 0 and ref_price >= poc_h:
+            swing_list_w = metrics.get("smart_brokers", {}).get("swing_masters", [])
+            cert_sell_w = [
+                s for s in swing_list_w
+                if s.get("is_1y_certified") and s.get("action") == "SELL" and (s.get("net_5d", 0) <= -15 or s.get("net_1d", 0) <= -10)
+            ]
+            cert_buy_w = [
+                s for s in swing_list_w
+                if s.get("is_1y_certified") and s.get("action") == "BUY" and (s.get("net_5d", 0) >= 15 or s.get("net_1d", 0) >= 10)
+            ]
+            cert_watch_w = [s for s in swing_list_w if s.get("is_1y_certified")]
+            watch_note = (
+                f" ｜ 1年認證高手監控：{'、'.join(s['broker_name'] for s in cert_watch_w[:3])}"
+                if cert_watch_w else ""
+            )
+
+            if cert_sell_w:
+                top_sw = cert_sell_w[0]
+                hero_decision_html = f"""
+                <div class="hero-decision banner-danger">
+                    <div class="hero-title">🚨 【週報波段轉折警報】1 年歷史認證賣頂高手「{top_sw['broker_name']}」本週密集調節出貨！</div>
+                    <div class="hero-desc">過去 1 年 {top_sw.get('high_zone_events_count', 0)} 度於波段高點精準逃頂 (回檔勝率 {top_sw.get('sell_win_rate', 0):.0f}%、正價差 +{top_sw.get('spread_pct', 0):.1f}%) 之神準分點，近 5 日再度賣超 {top_sw.get('net_5d', 0):+,} 張。下週切勿盲目追高，嚴守 20D VWAP ({fmt_price(w20_vwap)} 元) 與 60D POC ({poc_l:.1f}~{poc_h:.1f}元) 防線！</div>
+                </div>
+                """
+            elif cert_buy_w:
+                top_bw = cert_buy_w[0]
+                hero_decision_html = f"""
+                <div class="hero-decision banner-bull">
+                    <div class="hero-title">🔥 【週報波段抄底訊號】1 年歷史認證買底高手「{top_bw['broker_name']}」本週進場佈局！</div>
+                    <div class="hero-desc">具歷史低檔精準建倉基因 (正價差 +{top_bw.get('spread_pct', 0):.1f}%) 之波段高手近 5 日積極買超 {top_bw.get('net_5d', 0):+,} 張，搭配 60 日籌碼密集峰 ({poc_l:.1f}~{poc_h:.1f}元) 形成中長線底部支撐。</div>
+                </div>
+                """
+            elif is_bull_align and poc_l > 0 and ref_price >= poc_h:
                 hero_decision_html = f"""
                 <div class="hero-decision banner-bull">
                     <div class="hero-title">👑 【波段主升共振訊號】三線多頭排列 ＋ 突破 60 日籌碼密集峰</div>
-                    <div class="hero-desc">現價站穩 60 日換手箱型 ({poc_l:.1f}~{poc_h:.1f}元) 之上，且均線呈現 5MA > 20MA > 60MA 完美多頭架構，波段趨勢極度強勢，回測均線皆為防守買點。</div>
+                    <div class="hero-desc">現價站穩 60 日換手箱型 ({poc_l:.1f}~{poc_h:.1f}元) 之上，且均線呈現 5MA > 20MA > 60MA 完美多頭架構，波段趨勢極度強勢{watch_note}。</div>
                 </div>
                 """
             elif poc_l > 0 and ref_price >= poc_h:
                 hero_decision_html = f"""
                 <div class="hero-decision banner-bull">
                     <div class="hero-title">🚀 【大戶戰略訊號】強勢突破 60 日籌碼密集峰，開啟全新波段格局</div>
-                    <div class="hero-desc">現價已站穩近 60 日密集換手箱型區 ({poc_l:.1f}~{poc_h:.1f}元) 之上，該區間已由上檔壓力轉化為實質防守鐵板。波段回測此箱型不破皆為良好加碼防守點。</div>
+                    <div class="hero-desc">現價已站穩近 60 日密集換手箱型區 ({poc_l:.1f}~{poc_h:.1f}元) 之上，該區間已由上檔壓力轉化為實質防守鐵板{watch_note}。</div>
                 </div>
                 """
             elif total_net > 0 and m_diff < 0:
                 hero_decision_html = f"""
                 <div class="hero-decision banner-bull">
                     <div class="hero-title">🔥 【大戶戰略訊號】極致籌碼沉澱（大戶吸籌 ＋ 散戶退場）</div>
-                    <div class="hero-desc">三大法人波段積極買超，同時散戶融資減少，且集保大戶持股高達 {disp_major:.1f}%。籌碼流向強手，具備強大波段上攻動能。</div>
+                    <div class="hero-desc">三大法人波段積極買超，同時散戶融資減少，且集保大戶持股高達 {disp_major:.1f}%。籌碼流向強手{watch_note}。</div>
                 </div>
                 """
             elif poc_l > 0 and ref_price <= poc_l:
                 hero_decision_html = f"""
                 <div class="hero-decision banner-caution">
                     <div class="hero-title">⚠️ 【大戶戰略警示】現價承壓於 60 日籌碼峰下方，注意解套賣壓</div>
-                    <div class="hero-desc">現價位於核心換手箱型區 ({poc_l:.1f}~{poc_h:.1f}元) 之下，上方累積大量套牢籌碼。反彈遇 POC 箱型下緣宜減碼應對。</div>
+                    <div class="hero-desc">現價位於核心換手箱型區 ({poc_l:.1f}~{poc_h:.1f}元) 之下，上方累積大量套牢籌碼。反彈遇 POC 箱型下緣宜減碼應對{watch_note}。</div>
                 </div>
                 """
             else:
                 hero_decision_html = f"""
                 <div class="hero-decision" style="border-left: 4px solid #64748b; background: #f8fafc;">
                     <div class="hero-title">🔄 【大戶戰略訊號】處於核心籌碼密集峰內部，波段震盪洗盤換手</div>
-                    <div class="hero-desc">股價正於 60 日換手箱型 ({poc_l:.1f}~{poc_h:.1f}元) 激烈交戰，建議耐心等待帶量突破上緣或回測 20日 VWAP ({fmt_price(w20_vwap)} 元) 止跌再行波段佈局。</div>
+                    <div class="hero-desc">股價正於 60 日換手箱型 ({poc_l:.1f}~{poc_h:.1f}元) 激烈交戰，建議等待帶量突破上緣或回測 20日 VWAP ({fmt_price(w20_vwap)} 元) 止跌再行佈局{watch_note}。</div>
                 </div>
                 """
 
@@ -1908,6 +2018,7 @@ class ChipReporter:
         )
 
     def build_prompt(self, metrics: Dict[str, Any], mode: str = "daily") -> str:
+        """高密度結構化 Prompt 生成器 (已針對日報與週報壓縮 ~45% Input Token 並強化 1 年回測高手基因解析)"""
         stock_id = metrics.get("stock_id", "")
         stock_name = metrics.get("stock_name", "")
         stock_label = f"{stock_id} {stock_name}" if stock_name and stock_name != stock_id else stock_id
@@ -1924,135 +2035,155 @@ class ChipReporter:
         smart_brokers = metrics.get("smart_brokers", {})
         hoarders = smart_brokers.get("hoarders", [])
         swing_masters = smart_brokers.get("swing_masters", [])
-        hoarders_summary = ", ".join([f"{h['broker_name']}({h['period']}日淨買{h['net_shares']:,}張/佔比{h['ratio']}%, 純度{h['purity']:.1f}%)" for h in hoarders[:3]]) or "無明顯單一囤貨分點"
-        swing_summary = ", ".join([f"{s['broker_name']}({s['role']}, {s['desc']})" for s in swing_masters[:3]]) or "維持常態換手"
+        hoarders_summary = ", ".join([f"{h['broker_name']}({h['period']}D+{h['net_shares']:,}張/{h['ratio']}%,純度{h['purity']:.0f}%)" for h in hoarders[:3]]) or "無單一高純度囤貨分點"
+        swing_summary = "；".join([f"{s['broker_name']}[{s['role']}: {s.get('plain_summary') or s.get('desc', '')}]" for s in swing_masters[:4]]) or "維持常態換手"
 
         if mode == "daily":
             m1 = metrics.get("windows_metrics", {}).get(1, {})
             m5 = metrics.get("windows_metrics", {}).get(5, {})
-            b1_str = ", ".join([f"{b['broker_name']}(淨買{b['net_shares']}張, 標籤:{b['tags']})" for b in m1.get("top_buyers", [])[:3]])
-            s1_str = ", ".join([f"{s['broker_name']}(淨賣{s['net_shares']}張, 標籤:{s['tags']})" for s in m1.get("top_sellers", [])[:3]])
-            b5_str = ", ".join([f"{b['broker_name']}(淨買{b['net_shares']}張, 標籤:{b['tags']})" for b in m5.get("top_buyers", [])[:3]])
-            s5_str = ", ".join([f"{s['broker_name']}(淨賣{s['net_shares']}張, 標籤:{s['tags']})" for s in m5.get("top_sellers", [])[:3]])
+            b1_str = ", ".join([f"{b['broker_name']}(+{b['net_shares']}張/{b['tags']})" for b in m1.get("top_buyers", [])[:3]])
+            s1_str = ", ".join([f"{s['broker_name']}(-{s['net_shares']}張/{s['tags']})" for s in m1.get("top_sellers", [])[:3]])
+            b5_str = ", ".join([f"{b['broker_name']}(+{b['net_shares']}張/{b['tags']})" for b in m5.get("top_buyers", [])[:3]])
+            s5_str = ", ".join([f"{s['broker_name']}(-{s['net_shares']}張/{s['tags']})" for s in m5.get("top_sellers", [])[:3]])
 
             tech = metrics.get("technical_summary", {})
             tech_desc = (
-                f"5MA: {fmt_price(tech.get('ma5', 0))} 元 | "
-                f"20MA(月線): {fmt_price(tech.get('ma20', 0))} 元 | "
-                f"60MA(季線): {fmt_price(tech.get('ma60', 0))} 元 | "
-                f"成交量放量比: {derived['volume']['text']} | "
-                f"均線型態: {derived['ma']['label']} ({derived['ma']['desc']})"
+                f"5MA={fmt_price(tech.get('ma5', 0))}, 20MA={fmt_price(tech.get('ma20', 0))}, 60MA={fmt_price(tech.get('ma60', 0))}, "
+                f"量比={derived['volume']['text']}, 均線={derived['ma']['label']}({derived['ma']['desc']})"
             )
 
-            return f"""# 任務：台股籌碼主力當日戰術快報 (Daily Tactical Brief)
-股票代碼與名稱：{stock_label}
-分析日期：{trade_date}
-{derived['price_label']}：{ref_p_str} 元
-所屬產業：{prof.get('sector', '上市個股')}
+            return f"""# 台股當日籌碼戰術快報 ({stock_label} | {trade_date} | {derived['price_label']}:{ref_p_str}元)
+[量化事實(嚴禁矛盾)]
+- 法人: 外資{inst.get('foreign_buy_net', 0):+,}/投信{inst.get('investment_trust_net', 0):+,}/自營{inst.get('dealer_net', 0):+,}/合計{inst.get('institutional_total_net', 0):+,}張 ({derived['inst']['label']}:{derived['inst']['desc']})
+- 資券: 融資{margin.get('margin_diff', 0):+,}張(餘{margin.get('margin_balance', 0):,})/融券{margin.get('short_diff', 0):+,}張 ({derived['sediment']['label']}:{derived['sediment']['desc']})
+- 技術: {tech_desc}
+- 🔒長線囤貨大戶: {hoarders_summary}
+- 🎯1年回測認證波段高手: {swing_summary}
+- 1D主力: VWAP={fmt_price(m1.get('vwap_buy_cost', 0.0))}元({m1.get('bias_pct', 0.0):+.2f}%), 買前3:[{b1_str}], 賣前3:[{s1_str}], 警示:{'; '.join(m1.get('behavior_flags', [])) or '無'}
+- 5D主力: VWAP={fmt_price(m5.get('vwap_buy_cost', 0.0))}元({m5.get('bias_pct', 0.0):+.2f}%), 買前3:[{b5_str}], 賣前3:[{s5_str}]
 
-## 一、當日法人、資券與極短線進出（請嚴格與以下量化判定保持一致，切勿前後矛盾）：
-- 三大法人單日買賣超：外資 {inst.get('foreign_buy_net', 0):+,} 張 | 投信 {inst.get('investment_trust_net', 0):+,} 張 | 自營商 {inst.get('dealer_net', 0):+,} 張 | 合計 {inst.get('institutional_total_net', 0):+,} 張（系統判定：{derived['inst']['label']} — {derived['inst']['desc']}）
-- 散戶資券消長：融資單日增減 {margin.get('margin_diff', 0):+,} 張 (餘額 {margin.get('margin_balance', 0):,} 張) | 融券增減 {margin.get('short_diff', 0):+,} 張（系統沉澱訊號：{derived['sediment']['label']} — {derived['sediment']['desc']}）
-- 技術面均線與量能：{tech_desc}
-- 關鍵神準主力分點雷達：
-  * 🔒 長線囤貨大戶：{hoarders_summary}
-  * 🎯 波段神算高手：{swing_summary}
-- 1日週期主力成本 (VWAP)：{fmt_price(m1.get('vwap_buy_cost', 0.0))} 元 (現價乖離 {m1.get('bias_pct', 0.0):+.2f}%)，買方前三: {b1_str}，賣方前三: {s1_str}
-- 5日週期主力成本 (VWAP)：{fmt_price(m5.get('vwap_buy_cost', 0.0))} 元 (現價乖離 {m5.get('bias_pct', 0.0):+.2f}%)，買方前三: {b5_str}，賣方前三: {s5_str}
-- 短線量化特徵警示：{'; '.join(m1.get('behavior_flags', [])) if m1.get('behavior_flags') else '無特殊隔日沖警示'}
-
-## 請以【專業台股操盤手／戰術分析師】視角，產出結構化、精簡銳利的 Markdown 戰術快報 (約 300~450 字)：
-1. **當日多空動態與技術/籌碼共振**：三大法人態度、散戶融資增減與 5/20/60MA 均線及量能的綜合判讀（必須與上方系統判定一致）。
-2. **關鍵分點主力意圖解析**：是否有隔日沖或假外資介入？長線囤貨大戶是否持續買進？波段神算高手是否有買底正乖離、高檔了結或破線調節動作？明日早盤是否存在獲利了結賣壓？
-3. **明日早盤實戰操盤劇本**：
-   - 開高情境因應策略 (追價或防倒貨)
-   - 開平或回檔時的關鍵即時防守價 (跌破減碼點)
+請以台股實戰操盤手視角輸出精煉 Markdown (300~420字):
+1. **當日多空動態與技術/籌碼共振**(須與上方系統判定一致)
+2. **關鍵分點與1年認證波段高手意圖**(點名1年回測高手歷史勝率、前波高低點實績與近5日最新動作，及隔日沖/囤貨大戶動態)
+3. **明日早盤實戰操盤劇本**(開高因應、平盤/回檔之5D VWAP即時防守價與停損點)
 """
 
-        else:  # weekly
-            prompt = f"""# 任務：台股籌碼主力意圖深度戰略週報 (Weekly Strategic Report)
-股票代碼與名稱：{stock_label}
-分析週基準日：{trade_date}
-{derived['price_label']}：{ref_p_str} 元
-所屬產業：{prof.get('sector', '上市個股')}
-
-## 一、宏觀法人、資券與集保大戶底層結構：
-- 三大法人單日買賣超：外資 {inst.get('foreign_buy_net', 0):+,} 張 | 投信 {inst.get('investment_trust_net', 0):+,} 張 | 自營商 {inst.get('dealer_net', 0):+,} 張 | 合計 {inst.get('institutional_total_net', 0):+,} 張（系統判定：{derived['inst']['label']}）
-- 持股比率：外資持股 {inst.get('foreign_ratio', 0)}% | 法人總持股 {inst.get('institutional_ratio', 0)}%
-- 融資券散戶動態：融資餘額 {margin.get('margin_balance', 0):,} 張 (單日增減 {margin.get('margin_diff', 0):+,} 張) | 融券餘額 {margin.get('short_balance', 0):,} 張 (單日增減 {margin.get('short_diff', 0):+,} 張)（系統沉澱訊號：{derived['sediment']['label']} — {derived['sediment']['desc']}）
-- 集保戶大戶週趨勢 (TDCC)：最新一週集中度 {disp.get('concentration_ratio', 0)}% (週增減 {disp.get('concentration_diff', 0):+.2f}%) | 大戶持股比 {disp.get('major_holder_ratio', 0)}% | 董監持股比 {disp.get('director_ratio', 0)}%
-- 60日價量分佈籌碼峰 (Volume Profile)：密集換手箱型區 (POC) 為 {prof.get('poc_low', 0)} ~ {prof.get('poc_high', 0)} 元 (佔60日總成交量 {prof.get('poc_volume_ratio', 0)}%)
-- 基本面估值位階：本益比 (PE) {prof.get('pe_ratio', 'N/A')} 倍 | 股價淨值比 (PB) {prof.get('pb_ratio', 'N/A')} | 殖利率 {prof.get('yield_pct', 'N/A')}%
-- 關鍵神準主力分點雷達：
-  * 🔒 長線囤貨大戶：{hoarders_summary}
-  * 🎯 波段神算高手：{swing_summary}
-- 系統宏觀訊號：{'; '.join(macro_signals) if macro_signals else '法人與散戶籌碼態勢中性'}
-
-## 二、多週期分點籌碼量化數據：
-"""
+        else:  # weekly (矩陣式壓縮 Prompt，省下 50% Input Token)
+            matrix_lines = ["|週期|買方VWAP(乖離)|買前5%/賣前5%/淨集中%|買超前3|賣超前3|", "|---|---|---|---|---|"]
             for w, m in sorted(metrics.get("windows_metrics", {}).items()):
                 vwap = fmt_price(m.get("vwap_buy_cost", 0.0))
                 bias = m.get("bias_pct", 0.0)
-                buy_conc = m.get("buy_concentration_top5", 0.0)
-                sell_conc = m.get("sell_concentration_top5", 0.0)
-                net_conc = m.get("net_concentration", 0.0)
-                total_buy = m.get("total_buy_shares", 0)
-                total_sell = m.get("total_sell_shares", 0)
+                b_str = ",".join([f"{b['broker_name']}(+{b['net_shares']})" for b in m.get("top_buyers", [])[:3]])
+                s_str = ",".join([f"{s['broker_name']}(-{s['net_shares']})" for s in m.get("top_sellers", [])[:3]])
+                matrix_lines.append(
+                    f"|{w}D|{vwap}({bias:+.1f}%)|{m.get('buy_concentration_top5',0):.1f}%/{m.get('sell_concentration_top5',0):.1f}%/{m.get('net_concentration',0):+.1f}%|{b_str}|{s_str}|"
+                )
+            matrix_md = "\n".join(matrix_lines)
 
-                buyers_str = ", ".join([f"{b['broker_name']}(淨買{b['net_shares']}張/{b['ratio']}%, 標籤:{b['tags']})" for b in m.get("top_buyers", [])[:3]])
-                sellers_str = ", ".join([f"{s['broker_name']}(淨賣{s['net_shares']}張/{s['ratio']}%, 標籤:{s['tags']})" for s in m.get("top_sellers", [])[:3]])
-                flags_str = "; ".join(m.get("behavior_flags", [])) if m.get("behavior_flags") else "無特別警示"
+            return f"""# 台股機構籌碼戰略週報 ({stock_label} | {trade_date} | {derived['price_label']}:{ref_p_str}元 | {prof.get('sector', '台股')})
+[宏觀與1年回測主力結構(嚴禁矛盾)]
+- 法人: 外資{inst.get('foreign_buy_net', 0):+,}/投信{inst.get('investment_trust_net', 0):+,}/合計{inst.get('institutional_total_net', 0):+,}張 ({derived['inst']['label']}), 外資持股{inst.get('foreign_ratio', 0)}%
+- 資券與集保(TDCC): 融資餘{margin.get('margin_balance', 0):,}張({margin.get('margin_diff', 0):+,}) | 集保集中度{disp.get('concentration_ratio', 0)}%(週增減{disp.get('concentration_diff', 0):+.2f}%), 千張大戶{disp.get('major_holder_ratio', 0)}%
+- 60D籌碼密集峰(POC): {prof.get('poc_low', 0)}~{prof.get('poc_high', 0)}元 (量佔比{prof.get('poc_volume_ratio', 0)}%) | 估值: PE={prof.get('pe_ratio', 'N/A')}, PB={prof.get('pb_ratio', 'N/A')}, 殖利率={prof.get('yield_pct', 'N/A')}%
+- 🔒長線囤貨大戶(120~240D): {hoarders_summary}
+- 🎯1年回測認證波段高手: {swing_summary}
+- 系統宏觀訊號: {'; '.join(macro_signals) if macro_signals else '中性'}
 
-                prompt += f"""
-### 【{w} 日週期】
-- 主力加權買超成本 (VWAP)：{vwap} 元 (現價乖離率: {bias:+.2f}%)
-- 籌碼集中度：前5大買方佔比 {buy_conc}% | 賣方佔比 {sell_conc}% | 淨集中度 {net_conc:+.2f}%
-- 累計量能：買超 {total_buy} 張 / 賣超 {total_sell} 張
-- 主要買超券商：{buyers_str}
-- 主要賣超券商：{sellers_str}
-- 系統量化特徵標籤：{flags_str}
+[全週期主力成本與集中度矩陣]
+{matrix_md}
+
+請以機構籌碼分析師視角輸出結構化 Markdown 週報 (650~850字):
+1. **集保大戶週趨勢與融資對沖結構驗證**
+2. **多週期主力成本階梯(20/60/120/240D VWAP) ✕ 60日籌碼峰(POC)支撐壓力位階**
+3. **關鍵分點深度解析(長線囤貨大戶鎖碼底氣 ✕ 1年歷史認證波段高手之過往高低點戰績與本週最新動向)**
+4. **下週波段實戰操盤指引(多空態勢、關鍵破位停損價與突破加碼點)**
 """
 
-            prompt += """
----
-## 請以【專業台股機構籌碼分析師】視角，產出結構化 Markdown 戰略診斷週報 (約 800~1000 字)：
-1. **集保大戶趨勢與融資對沖驗證**：大戶鎖碼 vs 散戶退場真實結構判讀。
-2. **多週期主力成本帶與籌碼密集峰 (Volume Profile) 交叉盤整**：實質防守支撐箱型與安全邊際。
-3. **關鍵分點與「神準主力」意圖解析**：深入解析【長線囤貨大戶】（如長線鎖碼純度、底氣防守）與【波段神算高手】（如買底正乖離、高檔獲利了結或破線調節）的策略佈局與對後續波段之實質影響。
-4. **下週實戰操盤指引與波段防守點位**：波段多空態勢、關鍵破位停損點與突破加碼點。
-"""
-            return prompt
-
-    def generate_report(self, metrics: Dict[str, Any], mode: str = "daily") -> str:
-        """生成報告 (mode: 'daily' 日報 或 'weekly' 週報)"""
+    def generate_report(
+        self,
+        metrics: Dict[str, Any],
+        mode: str = "daily",
+        force_ai: bool = False,
+        ai_policy_override: Optional[str] = None,
+    ) -> str:
+        """
+        生成報告 (支援四層省流機制):
+        - ai_policy == 'cached' (預設): 同股、同日、同模式且數據指紋未變動時，100% 命中 SQLite 快取 (0 Token)
+        - ai_policy == 'signal_only': 僅當觸發重大籌碼/高手/技術異動時呼叫 Gemini，平淡日自動使用本地零矛盾量化引擎 (0 Token)
+        - ai_policy == 'local': 100% 使用本地零矛盾量化引擎 (0 Token)
+        """
         mode_label = "每日戰術快報" if mode == "daily" else "週末戰略週報"
-        logger.info(f"正在生成 {metrics.get('stock_id')} 【{mode_label}】...")
+        stock_id = metrics.get("stock_id", "stock")
+        trade_date = metrics.get("trade_date", datetime.now().strftime("%Y-%m-%d"))
+        policy = ai_policy_override or self.ai_policy or "cached"
+        data_hash = self._compute_data_hash(metrics, mode)
+
+        logger.info(f"正在生成 {stock_id} 【{mode_label}】 (AI策略: {policy}, 指紋: {data_hash[:8]})...")
 
         report_markdown = None
-        ai_source_label = "本地量化引擎 (Fallback)"
-        if self.client:
-            prompt = self.build_prompt(metrics, mode=mode)
-            for attempt in range(1, 3):
-                try:
-                    response = self.client.models.generate_content(
-                        model=self.model_name,
-                        contents=prompt
+        ai_source_label = "本地量化引擎 (0-Token)"
+
+        # Layer 1: 優先檢查 SQLite AI 報告快取 (同日且核心數據指紋未變 -> 0 Token 秒讀)
+        if self.db is not None and not force_ai and policy != "local":
+            cached_rep = self.db.get_ai_report_cache(stock_id, trade_date, mode, data_hash)
+            if cached_rep and cached_rep.get("ai_markdown"):
+                report_markdown = cached_rep["ai_markdown"]
+                base_lbl = cached_rep.get("ai_source_label", f"Gemini ({self.model_name})")
+                ai_source_label = f"{base_lbl} ⚡[SQLite快取複用 0-Token]" if "快取" not in base_lbl else base_lbl
+                logger.info(
+                    f"⚡ [AI Cache Hit] {stock_id} ({mode}, {trade_date}) 數據指紋未變動，"
+                    f"直接載入 SQLite 快取報告 (節省 100% Gemini Token)"
+                )
+
+        # Layer 4: 根據 ai_policy 決定是否呼叫 Gemini API
+        if not report_markdown:
+            should_call_ai = False
+            if policy == "local" or not self.client:
+                should_call_ai = False
+                ai_source_label = "本地量化引擎 (Local 0-Token)"
+            elif policy == "signal_only":
+                mat = metrics.get("material_signal", {})
+                if mat.get("is_material", False) or mode == "weekly":
+                    should_call_ai = True
+                    logger.info(
+                        f"🔥 [Signal Triggered] {stock_id} 觸發重大訊號 ({', '.join(mat.get('reasons', ['週報深度解析']))})，啟動 Gemini 深度分析"
                     )
-                    report_markdown = response.text
-                    ai_source_label = f"Gemini ({self.model_name})"
-                    break
-                except Exception as e:
-                    logger.warning(f"Gemini API 呼叫第 {attempt} 次遇到異常: {e}")
-                    if attempt < 2:
-                        time.sleep(2)
-                    else:
-                        logger.info("自動切換為本地量化專業報告產生器。")
+                else:
+                    should_call_ai = False
+                    ai_source_label = "本地量化引擎 (平淡日智慧省流 0-Token)"
+                    logger.info(f"🌱 [Signal Quiet] {stock_id} 今日無極端主力/技術異動，自動採用本地零矛盾量化快報 (0 Token)")
+            else:  # 'cached'
+                should_call_ai = True
+
+            if should_call_ai and self.client:
+                prompt = self.build_prompt(metrics, mode=mode)
+                for attempt in range(1, 3):
+                    try:
+                        response = self.client.models.generate_content(
+                            model=self.model_name,
+                            contents=prompt
+                        )
+                        report_markdown = response.text
+                        ai_source_label = f"Gemini ({self.model_name})"
+                        if self.db is not None and report_markdown:
+                            self.db.save_ai_report_cache(
+                                stock_id, trade_date, mode, data_hash, ai_source_label, report_markdown
+                            )
+                        break
+                    except Exception as e:
+                        logger.warning(f"Gemini API 呼叫第 {attempt} 次遇到異常: {e}")
+                        if attempt < 2:
+                            time.sleep(2)
+                        else:
+                            logger.info("自動切換為本地量化專業報告產生器。")
 
         if not report_markdown:
             report_markdown = self._generate_fallback_markdown(metrics, mode=mode)
+            if self.db is not None and policy == "signal_only":
+                self.db.save_ai_report_cache(
+                    stock_id, trade_date, mode, data_hash, ai_source_label, report_markdown
+                )
 
-        stock_id = metrics.get("stock_id", "stock")
-        trade_date = metrics.get("trade_date", datetime.now().strftime("%Y-%m-%d"))
         date_clean = trade_date.replace("-", "")
 
         # 依各股代碼與月份分類存放 (例如: reports/2301/2026-10/)

@@ -52,11 +52,14 @@ def _safe_get(url: str, headers: Optional[Dict[str, str]] = None, timeout: int =
 
 
 def roc_to_iso(roc_date: str) -> str:
-    """民國日期 (115/10/15) 轉西元 ISO 日期 (2026-10-15)；格式不符時回傳空字串"""
-    m = re.match(r"^\s*(\d{2,3})/(\d{1,2})/(\d{1,2})\s*$", str(roc_date or ""))
+    """民國日期 (115/10/15) 或西元斜線日期 (2026/10/15) 轉西元 ISO 日期 (2026-10-15)；格式不符時回傳空字串"""
+    m = re.match(r"^\s*(\d{2,4})[/\-](\d{1,2})[/\-](\d{1,2})\s*$", str(roc_date or ""))
     if not m:
         return ""
-    return f"{int(m.group(1)) + 1911:04d}-{int(m.group(2)):02d}-{int(m.group(3)):02d}"
+    y = int(m.group(1))
+    if y < 1911:
+        y += 1911
+    return f"{y:04d}-{int(m.group(2)):02d}-{int(m.group(3)):02d}"
 
 
 def fetch_official_daily_quote(stock_id: str, target_date: Optional[str] = None) -> Optional[Dict[str, Any]]:
@@ -176,7 +179,8 @@ def fetch_period_chip_data(stock_id: str, window: int) -> Optional[Dict[str, Any
         avg_sell_cost = 0.0
 
         for row in rows:
-            tds = [td.get_text(strip=True) for td in row.find_all(["td", "th"])]
+            raw_cells = row.find_all(["td", "th"])
+            tds = [td.get_text(strip=True) for td in raw_cells]
             if not tds:
                 continue
 
@@ -190,8 +194,11 @@ def fetch_period_chip_data(stock_id: str, window: int) -> Optional[Dict[str, Any
             if len(tds) == 10 and tds[0] not in ["買超券商", "合計買超張數", "平均買超成本"]:
                 b_name = tds[0]
                 if b_name:
+                    bhid_b, bcode_b = _extract_broker_link_codes(raw_cells[0])
                     top_buyers.append({
                         "broker_name": b_name,
+                        "bhid": bhid_b,
+                        "b_code": bcode_b,
                         "buy_shares": int(_clean_number(tds[1])),
                         "sell_shares": int(_clean_number(tds[2])),
                         "net_shares": int(_clean_number(tds[3])),
@@ -199,8 +206,11 @@ def fetch_period_chip_data(stock_id: str, window: int) -> Optional[Dict[str, Any
                     })
                 s_name = tds[5]
                 if s_name:
+                    bhid_s, bcode_s = _extract_broker_link_codes(raw_cells[5])
                     top_sellers.append({
                         "broker_name": s_name,
+                        "bhid": bhid_s,
+                        "b_code": bcode_s,
                         "buy_shares": int(_clean_number(tds[6])),
                         "sell_shares": int(_clean_number(tds[7])),
                         "net_shares": int(_clean_number(tds[8])),
@@ -222,6 +232,103 @@ def fetch_period_chip_data(stock_id: str, window: int) -> Optional[Dict[str, Any
     except Exception as e:
         logger.exception(f"解析 {stock_id} 【{window}日】 時發生異常: {e}")
         return None
+
+
+def _extract_broker_link_codes(cell) -> tuple:
+    """從券商分點 <td> 內的 <a href='...'> 擷取 (bhid, b_code)"""
+    if not cell:
+        return "", ""
+    a_tag = cell.find("a")
+    if not a_tag or not a_tag.get("href"):
+        return "", ""
+    href = a_tag["href"]
+    m_bhid = re.search(r"BHID=([^&]+)", href, re.I)
+    m_b = re.search(r"[?&]b=([^&]+)", href, re.I)
+    return (m_bhid.group(1) if m_bhid else ""), (m_b.group(1) if m_b else "")
+
+
+def fetch_historical_range_brokers(stock_id: str, start_date: str, end_date: str) -> Dict[str, List[Dict[str, Any]]]:
+    """
+    查詢過去任意歷史日期區間 (start_date ~ end_date) 的買賣超前 15 名分點與代碼
+    用於反查歷史每次波段高點 (Swing High) 是誰在賣頂、波段低點 (Swing Low) 是誰在抄底
+    """
+    url = f"https://fubon-ebrokerdj.fbs.com.tw/z/zc/zco/zco.djhtm?a={stock_id}&e={start_date}&f={end_date}"
+    headers = {"User-Agent": "Mozilla/5.0"}
+    buyers: List[Dict[str, Any]] = []
+    sellers: List[Dict[str, Any]] = []
+    try:
+        resp = _safe_get(url, headers=headers, timeout=12, retries=2)
+        if not resp or resp.status_code != 200:
+            return {"top_buyers": buyers, "top_sellers": sellers}
+        html = resp.content.decode("big5", errors="ignore")
+        soup = BeautifulSoup(html, "html.parser")
+        for row in soup.find_all("tr"):
+            raw_cells = row.find_all(["td", "th"])
+            tds = [td.get_text(strip=True) for td in raw_cells]
+            if len(tds) == 10 and tds[0] not in ["買超券商", "合計買超張數", "平均買超成本", ""]:
+                b_name = tds[0]
+                if b_name:
+                    bhid_b, bcode_b = _extract_broker_link_codes(raw_cells[0])
+                    buyers.append({
+                        "broker_name": b_name,
+                        "bhid": bhid_b,
+                        "b_code": bcode_b,
+                        "buy_shares": int(_clean_number(tds[1])),
+                        "sell_shares": int(_clean_number(tds[2])),
+                        "net_shares": int(_clean_number(tds[3])),
+                        "ratio": _clean_number(tds[4]),
+                    })
+                s_name = tds[5]
+                if s_name:
+                    bhid_s, bcode_s = _extract_broker_link_codes(raw_cells[5])
+                    sellers.append({
+                        "broker_name": s_name,
+                        "bhid": bhid_s,
+                        "b_code": bcode_s,
+                        "buy_shares": int(_clean_number(tds[6])),
+                        "sell_shares": int(_clean_number(tds[7])),
+                        "net_shares": int(_clean_number(tds[8])),
+                        "ratio": _clean_number(tds[9]),
+                    })
+    except Exception as e:
+        logger.warning(f"查詢 {stock_id} 歷史區間 ({start_date}~{end_date}) 分點異常: {e}")
+    return {"top_buyers": buyers, "top_sellers": sellers}
+
+
+def fetch_broker_daily_ledger(
+    stock_id: str, bhid: str, b_code: str, start_date: str, end_date: str
+) -> List[Dict[str, Any]]:
+    """
+    調閱單一分點於指定期間 (例如過去 1 年) 的逐日買賣超明細帳本 (zco0.djhtm)
+    """
+    if not bhid or not b_code:
+        return []
+    url = (
+        f"https://fubon-ebrokerdj.fbs.com.tw/z/zc/zco/zco0/zco0.djhtm"
+        f"?A={stock_id}&BHID={bhid}&b={b_code}&C=1&D={start_date}&E={end_date}&ver=V3"
+    )
+    headers = {"User-Agent": "Mozilla/5.0"}
+    trades: List[Dict[str, Any]] = []
+    try:
+        resp = _safe_get(url, headers=headers, timeout=12, retries=2)
+        if not resp or resp.status_code != 200:
+            return trades
+        html = resp.content.decode("big5", errors="ignore")
+        soup = BeautifulSoup(html, "html.parser")
+        for tr in soup.find_all("tr"):
+            tds = [td.get_text(strip=True) for td in tr.find_all("td")]
+            if len(tds) == 5 and "/" in tds[0] and tds[0][0].isdigit():
+                try:
+                    dt_iso = roc_to_iso(tds[0])
+                    b = int(_clean_number(tds[1]))
+                    s = int(_clean_number(tds[2]))
+                    net = int(_clean_number(tds[4]))
+                    trades.append({"date": dt_iso, "buy": b, "sell": s, "net": net})
+                except Exception:
+                    continue
+    except Exception as e:
+        logger.warning(f"調閱 {stock_id} 分點 ({bhid}/{b_code}) 逐日帳本異常: {e}")
+    return trades
 
 
 def fetch_institutional_investors(stock_id: str) -> Optional[Dict[str, Any]]:
@@ -340,7 +447,8 @@ def fetch_volume_profile_and_fundamentals(stock_id: str, anchor_date: Optional[s
         "pb_ratio": 0.0,
         "yield_pct": 0.0,
         "sector": "",
-        "kline_data": None
+        "kline_data": None,
+        "kline_1y": []
     }
     
     # 判斷上市或上櫃後綴
@@ -348,7 +456,7 @@ def fetch_volume_profile_and_fundamentals(stock_id: str, anchor_date: Optional[s
     for sym in ticker_symbols:
         try:
             ticker = yf.Ticker(sym)
-            df = ticker.history(period="6mo")
+            df = ticker.history(period="1y")
             if not df.empty and len(df) >= 10:
                 import pandas as pd
                 # 若指定 anchor_date (例如盤中重跑前一日籌碼報告)，剔除尚未收盤或晚於 anchor_date 的盤中 K 棒
@@ -396,6 +504,20 @@ def fetch_volume_profile_and_fundamentals(stock_id: str, anchor_date: Optional[s
                         df = df.dropna(subset=["Close"])
                 result["price_source"] = price_source
                 result["price_date"] = df.index[-1].strftime("%Y-%m-%d")
+
+                # 0.5 儲存完整 1 年期日 K 序列 (供 1 年期波段轉折高低點偵測與分點逐日帳本回測使用)
+                result["kline_1y"] = [
+                    {
+                        "date": d.strftime("%Y-%m-%d"),
+                        "Open": round(float(r["Open"]), 2),
+                        "High": round(float(r["High"]), 2),
+                        "Low": round(float(r["Low"]), 2),
+                        "Close": round(float(r["Close"]), 2),
+                        "Volume": int(r["Volume"] / 1000)
+                    }
+                    for d, r in df.iterrows()
+                    if not np.isnan(r["Close"])
+                ]
 
                 # 1. 計算 60 日籌碼密集峰 (POC)
                 df_60 = df.tail(60)

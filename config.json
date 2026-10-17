@@ -7,6 +7,9 @@
   "broker_tags_path": "data/broker_tags.json",
   "output_dir": "reports",
   "model_name": "gemini-2.5-flash",
+  "ai_policy": "cached",
+  "backtest_ttl_days": 7,
+  "cold_window_ttl_days": 5,
   "log_level": "INFO",
   "thresholds": {
     "hoarder_purity_min": 65.0,

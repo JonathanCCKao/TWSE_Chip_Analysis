@@ -5,12 +5,24 @@
   "db_path": "data/chips.db",
   "gemini_key_path": "C:/Users/jonathancc_kao/Vibe_Coding/Key_No_Release/gemini_key.txt",
   "broker_tags_path": "data/broker_tags.json",
+  "broker_kb_dir": "brokers",
+  "tracked_brokers": {
+    "6782": ["統一-桃園"]
+  },
   "output_dir": "reports",
   "model_name": "gemini-2.5-flash",
   "ai_policy": "cached",
   "backtest_ttl_days": 7,
   "cold_window_ttl_days": 5,
   "log_level": "INFO",
+  "news_config": {
+    "enabled": true,
+    "top_k": 5,
+    "max_stock_news": 4,
+    "min_macro_news": 1,
+    "primary_sources": ["MoneyDJ", "鉅亨網"],
+    "fallback_sources": ["經濟日報", "工商時報", "中央社"]
+  },
   "thresholds": {
     "hoarder_purity_min": 65.0,
     "hoarder_ratio_min": 1.8,

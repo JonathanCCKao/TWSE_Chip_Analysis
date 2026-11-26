@@ -394,10 +394,207 @@ def fetch_margin_trading(stock_id: str) -> Optional[Dict[str, Any]]:
     return None
 
 
+def _fetch_dispersion_norway(stock_id: str) -> Optional[Dict[str, Any]]:
+    """
+    從台灣股市資訊網解析完整集保股權分散歷程 (近 26 週):
+    - >200張主力大戶持股比例、人數、週增減、人均持股張數
+    - <10張純散戶持股比例、人數、週增減、人均持股張數
+    - 6 個月歷史趨勢圖序列 (dates, over_200_pct, under_10_pct, prices)
+    """
+    url = f"https://norway.twsthr.info/StockHolders.aspx?stock={stock_id}"
+    headers = {"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64)"}
+    try:
+        r = _safe_get(url, headers=headers, timeout=12, retries=2)
+        if not r or r.status_code != 200:
+            return None
+        soup = BeautifulSoup(r.text, "html.parser")
+        tables = soup.find_all("table")
+
+        detail_table = None
+        price_table = None
+        count_table = None
+
+        for t in tables:
+            txt = t.get_text()
+            if "小於1張" in txt and "1000張以上" in txt:
+                detail_table = t
+            elif ">400張大股東持有張數" in txt and "收盤價" in txt:
+                price_table = t
+            elif "持股張數分級" in txt and "400 張以上" in txt:
+                count_table = t
+
+        if not detail_table or not price_table:
+            return None
+
+        price_map = {}
+        for row in price_table.find_all("tr"):
+            tds = [td.get_text(strip=True) for td in row.find_all(["td", "th"])]
+            for i, val in enumerate(tds):
+                if re.match(r"^\d{8}$", val):
+                    sub = tds[i:]
+                    if len(sub) >= 13:
+                        d_str = f"{val[:4]}-{val[4:6]}-{val[6:8]}"
+                        try:
+                            tot_s = float(sub[1].replace(",", ""))
+                            tot_h = int(sub[2].replace(",", ""))
+                            o400_h = int(sub[6].replace(",", ""))
+                            p_val = float(sub[12].replace(",", ""))
+                            price_map[d_str] = {
+                                "price": p_val,
+                                "total_holders": tot_h,
+                                "over_400_cnt": o400_h,
+                                "total_shares": tot_s,
+                                "major_1000_pct": float(sub[11].replace(",", ""))
+                            }
+                        except Exception:
+                            pass
+
+        # 解析 count_table (D2) 近期週次精確人數
+        exact_counts = {}
+        if count_table:
+            dates_row = None
+            rows = count_table.find_all("tr")
+            for r in rows:
+                c_dates = [td.get_text(strip=True) for td in r.find_all(["td", "th"]) if re.match(r"^\d{8}$", td.get_text(strip=True))]
+                if c_dates:
+                    dates_row = c_dates
+                    break
+            if dates_row:
+                for d in dates_row:
+                    iso_d = f"{d[:4]}-{d[4:6]}-{d[6:8]}"
+                    exact_counts[iso_d] = {"u10": 0, "o200": 0}
+
+                for row in rows:
+                    tds = [td.get_text(strip=True) for td in row.find_all(["td", "th"])]
+                    lbl = tds[1] if len(tds) > 1 else ""
+                    for i, d in enumerate(dates_row):
+                        iso_d = f"{d[:4]}-{d[4:6]}-{d[6:8]}"
+                        col_idx = 2 + i * 4
+                        if len(tds) > col_idx:
+                            try:
+                                c = int(tds[col_idx].replace(",", ""))
+                                if lbl in ["1-999股", "1-5張", "5-10張"]:
+                                    exact_counts[iso_d]["u10"] += c
+                                elif lbl in ["200-400張", "400-600張", "600-800張", "800-1,000張", "1,000張以上"]:
+                                    exact_counts[iso_d]["o200"] += c
+                            except Exception:
+                                pass
+
+        history_weeks = []
+        seen_dates = set()
+        for row in detail_table.find_all("tr"):
+            tds = [td.get_text(strip=True) for td in row.find_all(["td", "th"])]
+            for c_idx, val in enumerate(tds):
+                if re.match(r"^\d{8}$", val):
+                    d_str = f"{val[:4]}-{val[4:6]}-{val[6:8]}"
+                    if d_str in seen_dates:
+                        continue
+                    sub_vals = tds[c_idx+1:c_idx+16]
+                    if len(sub_vals) >= 15:
+                        try:
+                            floats = [float(v.replace(",", "")) for v in sub_vals]
+                            u10 = round(sum(floats[0:3]), 2)
+                            p_200_400 = floats[10]
+                            o200 = round(sum(floats[10:15]), 2)
+                            o1000 = round(floats[14], 2)
+                            p_info = price_map.get(d_str, {})
+                            tot_s = p_info.get("total_shares", 0)
+                            tot_h = p_info.get("total_holders", 0)
+                            o400_cnt = p_info.get("over_400_cnt", 0)
+
+                            if d_str in exact_counts and exact_counts[d_str]["o200"] > 0:
+                                o200_cnt = exact_counts[d_str]["o200"]
+                                u10_cnt = exact_counts[d_str]["u10"]
+                            else:
+                                cnt_200_400 = round((tot_s * (p_200_400 / 100.0)) / 280.0) if tot_s > 0 else 0
+                                o200_cnt = o400_cnt + cnt_200_400
+                                u10_cnt = round(tot_h * (0.925 + (u10 / 100.0) * 0.07)) if tot_h > 0 else 0
+
+                            history_weeks.append({
+                                "date": d_str,
+                                "under_10_pct": u10,
+                                "over_200_pct": o200,
+                                "over_1000_pct": o1000,
+                                "price": p_info.get("price", 0.0),
+                                "total_holders": tot_h,
+                                "over_200_cnt": o200_cnt,
+                                "under_10_cnt": u10_cnt
+                            })
+                            seen_dates.add(d_str)
+                        except Exception:
+                            pass
+
+        if not history_weeks:
+            return None
+
+        history_weeks = history_weeks[:26]
+        history_asc = list(reversed(history_weeks))
+
+        latest_w = history_weeks[0]
+        prev_w = history_weeks[1] if len(history_weeks) > 1 else latest_w
+
+        o200_count_latest = latest_w.get("over_200_cnt", 0)
+        o200_count_prev = prev_w.get("over_200_cnt", 0)
+        u10_count_latest = latest_w.get("under_10_cnt", 0)
+        u10_count_prev = prev_w.get("under_10_cnt", 0)
+
+        latest_w = history_weeks[0]
+        prev_w = history_weeks[1] if len(history_weeks) > 1 else latest_w
+
+        o200_ratio = latest_w.get("over_200_pct", 0.0)
+        o200_diff = round(o200_ratio - prev_w.get("over_200_pct", 0.0), 2)
+        u10_ratio = latest_w.get("under_10_pct", 0.0)
+        u10_diff = round(u10_ratio - prev_w.get("under_10_pct", 0.0), 2)
+
+        tot_shares = price_map.get(latest_w.get("date"), {}).get("total_shares", 0)
+        o200_shares = tot_shares * (o200_ratio / 100.0)
+        u10_shares = tot_shares * (u10_ratio / 100.0)
+
+        avg_shares_o200 = round(o200_shares / o200_count_latest, 1) if o200_count_latest > 0 else 0.0
+        avg_shares_u10 = round(u10_shares / u10_count_latest, 2) if u10_count_latest > 0 else 0.0
+
+        return {
+            "date": latest_w.get("date", ""),
+            "over_200_ratio": o200_ratio,
+            "over_200_diff": o200_diff,
+            "over_200_count": o200_count_latest,
+            "over_200_count_diff": o200_count_latest - o200_count_prev,
+            "avg_shares_over_200": avg_shares_o200,
+
+            "under_10_ratio": u10_ratio,
+            "under_10_diff": u10_diff,
+            "under_10_count": u10_count_latest,
+            "under_10_count_diff": u10_count_latest - u10_count_prev,
+            "avg_shares_under_10": avg_shares_u10,
+
+            # 向下相容既有欄位
+            "concentration_ratio": o200_ratio,
+            "concentration_diff": o200_diff,
+            "major_holder_ratio": latest_w.get("over_1000_pct", 0.0),
+
+            # 6 個月趨勢圖數據序列 (升冪排序)
+            "trend_chart": {
+                "dates": [w["date"] for w in history_asc],
+                "over_200_pct": [w["over_200_pct"] for w in history_asc],
+                "under_10_pct": [w["under_10_pct"] for w in history_asc],
+                "prices": [w["price"] for w in history_asc],
+                "over_200_cnt": [w["over_200_cnt"] for w in history_asc],
+                "under_10_cnt": [w["under_10_cnt"] for w in history_asc]
+            }
+        }
+    except Exception as e:
+        logger.warning(f"解析 {stock_id} 完整集保歷程失敗: {e}，將嘗試 fallback 至 HiStock")
+        return None
+
+
 def fetch_shareholding_dispersion(stock_id: str) -> Optional[Dict[str, Any]]:
     """
-    抓取集保股權分散表 (大戶籌碼 vs 散戶籌碼週變化)
+    抓取集保股權分散表 (優先解析 6 個月 >200張大戶 ✕ <10張散戶歷程，失敗則自動降級至 HiStock)
     """
+    res = _fetch_dispersion_norway(stock_id)
+    if res and res.get("trend_chart"):
+        return res
+
     url = f"https://histock.tw/stock/large.aspx?no={stock_id}"
     headers = {"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64)"}
     try:
@@ -425,6 +622,10 @@ def fetch_shareholding_dispersion(stock_id: str) -> Optional[Dict[str, Any]]:
                         "date": latest[0],
                         "concentration_ratio": cur_conc,
                         "concentration_diff": diff_conc,
+                        "over_200_ratio": cur_conc,
+                        "over_200_diff": diff_conc,
+                        "under_10_ratio": 0.0,
+                        "under_10_diff": 0.0,
                         "foreign_ratio": _clean_number(latest[2]),
                         "major_holder_ratio": _clean_number(latest[3]),
                         "director_ratio": _clean_number(latest[4])
@@ -640,3 +841,423 @@ def fetch_volume_profile_and_fundamentals(stock_id: str, anchor_date: Optional[s
             continue
 
     return result
+
+
+def _normalize_news_source(raw_source: str, title: str = "", link: str = "") -> str:
+    """標準化權威財經媒體名稱"""
+    combined = f"{raw_source} {title} {link}".lower()
+    if "moneydj" in combined or "嘉實" in combined or "fubon-ebrokerdj" in combined:
+        return "MoneyDJ 理財網"
+    if "cnyes" in combined or "鉅亨" in combined:
+        return "鉅亨網 Anue"
+    if "经济日报" in combined or "經濟日報" in combined or "money.udn" in combined:
+        return "經濟日報"
+    if "工商時報" in combined or "工商" in combined or "ctee.com" in combined:
+        return "工商時報"
+    if "中央社" in combined or "cna.com" in combined:
+        return "中央社財經"
+    return raw_source.strip() or "權威財經媒體"
+
+
+def _clean_news_title(title: str) -> str:
+    """清理新聞標題尾端的媒體名稱與多餘後綴"""
+    t = str(title or "").strip()
+    t = re.sub(
+        r"\s*[-｜|]\s*(新聞\s*[-｜|]\s*)?(MoneyDJ(\s*理財網)?|鉅亨網|鉅亨號|經濟日報|工商時報|中央社|CNA|Yahoo奇摩股市).*$",
+        "",
+        t,
+        flags=re.I,
+    )
+    t = re.sub(r"^鉅亨速報\s*[-—:：]\s*", "", t)
+    return t.strip()
+
+
+def _title_similarity_key(title: str) -> str:
+    """產生去重比對鍵（移除標點符號、空白與常見前綴）"""
+    cleaned = re.sub(r"[\s\W_]+", "", _clean_news_title(title).lower())
+    return cleaned
+
+
+def _is_duplicate_title(title: str, seen_keys: List[str]) -> bool:
+    """檢查標題是否與已選新聞高度重複（例如同篇重訊或法說會公告在不同媒體重複刊登）"""
+    key = _title_similarity_key(title)
+    if not key:
+        return True
+    is_fashuo = ("法說會" in title or "法人說明會" in title)
+    is_factset = ("factset" in title.lower() and "目標價" in title)
+    for sk in seen_keys:
+        if key == sk or (len(key) >= 8 and (key in sk or sk in key)):
+            return True
+        if is_fashuo and ("法說會" in sk or "法人說明會" in sk):
+            return True
+        if is_factset and ("factset" in sk and "目標價" in sk):
+            return True
+        # 計算字元集合重疊率 (Jaccard / Overlap)
+        set_a, set_b = set(key), set(sk)
+        overlap = len(set_a & set_b) / max(min(len(set_a), len(set_b)), 1)
+        if overlap >= 0.78:
+            return True
+    return False
+
+
+def _score_and_classify_news(
+    title: str,
+    source: str,
+    pub_dt: Any,
+    ref_dt: Any,
+    scope: str,
+    stock_id: str,
+    stock_name: str,
+    mode: str,
+) -> Dict[str, Any]:
+    """
+    本地零 Token 量化重要性評分與多空語意分類器：
+    綜合考量「媒體權威度 + 催化劑關鍵字權重 + 時效性」
+    """
+    score = 50.0
+
+    # 1. 權威媒體權重 (優先加權 MoneyDJ 理財網 與 鉅亨網 Anue)
+    if source == "MoneyDJ 理財網":
+        score += 32.0
+    elif source == "鉅亨網 Anue":
+        score += 30.0
+    elif source in ("經濟日報", "工商時報", "中央社財經"):
+        score += 24.0
+
+    # 2. 個股直接關聯度加權
+    if scope == "stock":
+        if stock_name and stock_name in title:
+            score += 25.0
+        if stock_id and stock_id in title:
+            score += 15.0
+
+    # 3. 重大基本面與籌碼催化劑關鍵字加權
+    high_impact_kw = [
+        "法說", "財報", "營收", "EPS", "毛利率", "目標價", "Factset", "FactSet",
+        "澄清", "重訊", "重大訊息", "庫藏股", "股利", "配息", "資本支出", "擴產",
+        "訂單", "出貨", "外資", "投信", "法人", "台積電", "輝達", "AI", "聯準會", "央行", "關稅"
+    ]
+    for kw in high_impact_kw:
+        if kw.lower() in title.lower():
+            score += 10.0
+
+    # 4. 判斷多空語意標籤 (sentiment)
+    bull_kw = [
+        "創高", "新高", "大增", "成長", "調升", "上修", "買超", "看旺", "樂觀",
+        "突破", "加碼", "優於預期", "強攻", "點讚", "獲認證", "滿載", "提前", "利多"
+    ]
+    bear_kw = [
+        "衰退", "下滑", "下修", "調降", "賣超", "提款", "重挫", "暴跌", "跌破",
+        "保守", "虧損", "裁員", "利空", "衝擊", "失守", "壓回", "砍單", "警示"
+    ]
+    official_kw = ["法說會", "法人說明會", "澄清", "公告", "董事會", "股東會", "重訊"]
+
+    bull_hits = sum(1 for k in bull_kw if k in title)
+    bear_hits = sum(1 for k in bear_kw if k in title)
+    is_official = any(k in title for k in official_kw)
+
+    if is_official and bull_hits == 0 and bear_hits == 0:
+        sentiment = "📢 重訊/法說"
+        sentiment_tone = "official"
+        score += 8.0
+    elif bull_hits > bear_hits:
+        sentiment = "🔥 利多催化"
+        sentiment_tone = "bull"
+        score += 6.0 * bull_hits
+    elif bear_hits > bull_hits:
+        sentiment = "⚠️ 利空警訊"
+        sentiment_tone = "bear"
+        score += 6.0 * bear_hits
+    else:
+        sentiment = "📊 焦點動態" if scope == "stock" else "🌐 總經盤勢"
+        sentiment_tone = "neutral"
+
+    # 5. 時效性權重衰減 (日報強調近 48 小時，週報涵蓋近 7~10 日高影響力事件)
+    if pub_dt and ref_dt:
+        age_hours = max(0.0, (ref_dt - pub_dt).total_seconds() / 3600.0)
+        if mode == "daily":
+            if age_hours <= 36:
+                score += 30.0
+            elif age_hours <= 72:
+                score += 15.0
+            else:
+                score -= min(30.0, (age_hours - 72) * 0.25)
+        else:  # weekly
+            if age_hours <= 168:  # 7 days
+                score += 20.0
+            else:
+                score -= min(25.0, (age_hours - 168) * 0.15)
+
+    return {
+        "score": round(score, 1),
+        "sentiment": sentiment,
+        "sentiment_tone": sentiment_tone,
+    }
+
+
+def _fetch_google_rss_news(query: str, max_items: int = 25) -> List[Dict[str, Any]]:
+    """透過 Google News RSS 檢索指定權威媒體網域之新聞"""
+    import xml.etree.ElementTree as ET
+    from email.utils import parsedate_to_datetime
+    from datetime import timezone, timedelta
+
+    tw_tz = timezone(timedelta(hours=8))
+    url = "https://news.google.com/rss/search"
+    params = {
+        "q": query,
+        "hl": "zh-TW",
+        "gl": "TW",
+        "ceid": "TW:zh-Hant",
+    }
+    headers = {
+        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
+    }
+    results: List[Dict[str, Any]] = []
+    try:
+        resp = requests.get(url, params=params, headers=headers, timeout=12)
+        if resp.status_code != 200:
+            return results
+        root = ET.fromstring(resp.content)
+        for item in root.findall(".//item")[:max_items]:
+            raw_title = item.findtext("title") or ""
+            link = item.findtext("link") or ""
+            pub_str = item.findtext("pubDate") or ""
+            raw_src = item.findtext("source") or ""
+
+            pub_dt = None
+            pub_display = ""
+            if pub_str:
+                try:
+                    dt = parsedate_to_datetime(pub_str).astimezone(tw_tz)
+                    pub_dt = dt
+                    pub_display = dt.strftime("%Y-%m-%d %H:%M")
+                except Exception:
+                    pub_display = pub_str[:16]
+
+            source_name = _normalize_news_source(raw_src, raw_title, link)
+            clean_t = _clean_news_title(raw_title)
+            if not clean_t:
+                continue
+
+            results.append({
+                "title": clean_t,
+                "source": source_name,
+                "pub_date": pub_display,
+                "pub_dt": pub_dt,
+                "url": link,
+            })
+    except Exception as e:
+        logger.warning(f"Google News RSS 抓取異常 ({query}): {e}")
+    return results
+
+
+def _fetch_cnyes_direct_news(stock_id: str, stock_name: str, limit: int = 15) -> List[Dict[str, Any]]:
+    """從鉅亨網 Anue 官方台股新聞 API 抓取最新即時頭條與個股動態"""
+    from datetime import datetime, timezone, timedelta
+
+    tw_tz = timezone(timedelta(hours=8))
+    url = f"https://api.cnyes.com/media/api/v1/newslist/category/tw_stock?limit={limit}"
+    headers = {"User-Agent": "Mozilla/5.0"}
+    results: List[Dict[str, Any]] = []
+    try:
+        resp = _safe_get(url, headers=headers, timeout=10, retries=1)
+        if not resp or resp.status_code != 200:
+            return results
+        data_list = (resp.json().get("items") or {}).get("data") or []
+        for row in data_list:
+            raw_title = row.get("title") or ""
+            news_id = row.get("newsId")
+            pub_ts = row.get("publishAt")
+            if not raw_title or not news_id:
+                continue
+            # 過濾掉與本股無關之其他小股盤中速報
+            if "盤中速報" in raw_title and stock_id not in raw_title and (not stock_name or stock_name not in raw_title):
+                continue
+
+            pub_dt = None
+            pub_display = ""
+            if pub_ts:
+                try:
+                    dt = datetime.fromtimestamp(int(pub_ts), tz=tw_tz)
+                    pub_dt = dt
+                    pub_display = dt.strftime("%Y-%m-%d %H:%M")
+                except Exception:
+                    pass
+
+            clean_t = _clean_news_title(raw_title)
+            results.append({
+                "title": clean_t,
+                "source": "鉅亨網 Anue",
+                "pub_date": pub_display,
+                "pub_dt": pub_dt,
+                "url": f"https://news.cnyes.com/news/id/{news_id}",
+            })
+    except Exception as e:
+        logger.debug(f"鉅亨網 API 抓取異常: {e}")
+    return results
+
+
+def fetch_authoritative_financial_news(
+    stock_id: str,
+    stock_name: str = "",
+    anchor_date: Optional[str] = None,
+    mode: str = "daily",
+    top_k: int = 5,
+    max_stock_news: int = 4,
+    min_macro_news: int = 1,
+) -> List[Dict[str, Any]]:
+    """
+    採集當日 (daily) 或當週 (weekly) 前 5 大權威財經新聞：
+    - 核心媒體：MoneyDJ 理財網 (moneydj.com) ✕ 鉅亨網 (cnyes.com)
+    - 備援白名單：經濟日報 (money.udn.com)、工商時報 (ctee.com.tw)、中央社 (cna.com.tw)
+    - 混合配比：優先選入 3~4 則「🎯 個股焦點」新聞 + 1~2 則「🌐 台股總經」重磅新聞（不足自動互補滿 5 則）
+    """
+    from datetime import datetime, timezone, timedelta
+
+    tw_tz = timezone(timedelta(hours=8))
+    ref_dt = datetime.now(tz=tw_tz)
+    if anchor_date:
+        try:
+            parsed_d = datetime.strptime(anchor_date, "%Y-%m-%d").replace(
+                hour=23, minute=59, second=59, tzinfo=tw_tz
+            )
+            if parsed_d < ref_dt:
+                ref_dt = parsed_d
+        except Exception:
+            pass
+
+    name_part = f'"{stock_name}" OR "{stock_id}"' if stock_name and stock_name != stock_id else f'"{stock_id}"'
+    stock_time_filter = "when:7d" if mode == "daily" else "when:14d"
+    macro_time_filter = "when:2d" if mode == "daily" else "when:7d"
+
+    # 1. 抓取個股專屬新聞 (第一優先：MoneyDJ 理財網 與 鉅亨網 Anue)
+    q_stock_primary = f"({name_part}) (site:moneydj.com OR site:cnyes.com) {stock_time_filter}"
+    raw_stock_news = _fetch_google_rss_news(q_stock_primary, max_items=20)
+
+    # 若該個股在雙核心媒體近期新聞少於 3 則，自動由經濟日報/工商時報/中央社白名單遞補
+    if len(raw_stock_news) < 3:
+        q_stock_fallback = f"({name_part}) (site:money.udn.com OR site:ctee.com.tw OR site:cna.com.tw) {stock_time_filter}"
+        raw_stock_news.extend(_fetch_google_rss_news(q_stock_fallback, max_items=10))
+
+    # 2. 抓取台股大盤與總經重磅新聞 (MoneyDJ 理財網 ✕ 鉅亨網 Anue)
+    q_macro = (
+        f"台股 (外資 OR 大盤 OR 台積電 OR 聯準會 OR 央行 OR AI OR 期貨) "
+        f"-盤中速報 -近5日 (site:moneydj.com OR site:cnyes.com) {macro_time_filter}"
+    )
+    raw_macro_news = _fetch_google_rss_news(q_macro, max_items=20)
+    raw_macro_news.extend(_fetch_cnyes_direct_news(stock_id, stock_name, limit=12))
+
+    noise_patterns = [
+        "近5日買超", "近5日賣超", "盤中速報", "融資排行", "融券排行",
+        "股價拉至漲停", "股價跌停", "線圖", "個股報價", "技術線圖",
+        "股價很讚", "無內文", "討論區", "Yahoo奇摩股市"
+    ]
+
+    scored_stock: List[Dict[str, Any]] = []
+    seen_keys: List[str] = []
+
+    for item in raw_stock_news:
+        t = item["title"]
+        if any(np_str in t for np_str in noise_patterns):
+            continue
+        # 確保個股新聞確實與該個股或產業相關
+        if stock_name and stock_name not in t and stock_id not in t:
+            continue
+        if _is_duplicate_title(t, seen_keys):
+            continue
+        seen_keys.append(_title_similarity_key(t))
+
+        meta = _score_and_classify_news(
+            t, item["source"], item.get("pub_dt"), ref_dt, "stock", stock_id, stock_name, mode
+        )
+        scored_stock.append({
+            "title": t,
+            "source": item["source"],
+            "pub_date": item["pub_date"],
+            "url": item["url"],
+            "scope": "🎯 個股焦點",
+            "sentiment": meta["sentiment"],
+            "sentiment_tone": meta["sentiment_tone"],
+            "score": meta["score"],
+        })
+
+    scored_stock.sort(key=lambda x: x["score"], reverse=True)
+
+    scored_macro: List[Dict[str, Any]] = []
+    macro_must_kw = ["台股", "大盤", "外資", "台積電", "聯準會", "央行", "費半", "美股", "新台幣", "關稅", "AI", "加權", "期貨", "ETF", "投信"]
+    for item in raw_macro_news:
+        t = item["title"]
+        if any(np_str in t for np_str in noise_patterns):
+            continue
+        # 若總經列表剛好抓到本股新聞，自動歸類為個股焦點
+        is_self = (stock_name and stock_name in t) or (stock_id in t)
+        if not is_self:
+            # 排除其他單一個股的 FactSet 調查、單一個股公告或非本股之法說會，確保總經頭條純度
+            if "factset" in t.lower() or re.search(r"\(\d{4}-TW\)", t) or "法說會" in t:
+                continue
+            if not any(mk in t for mk in macro_must_kw):
+                continue
+        if _is_duplicate_title(t, seen_keys):
+            continue
+        seen_keys.append(_title_similarity_key(t))
+        scope_type = "stock" if is_self else "macro"
+        meta = _score_and_classify_news(
+            t, item["source"], item.get("pub_dt"), ref_dt, scope_type, stock_id, stock_name, mode
+        )
+        entry = {
+            "title": t,
+            "source": item["source"],
+            "pub_date": item["pub_date"],
+            "url": item["url"],
+            "scope": "🎯 個股焦點" if is_self else "🌐 台股總經",
+            "sentiment": meta["sentiment"],
+            "sentiment_tone": meta["sentiment_tone"],
+            "score": meta["score"],
+        }
+        if is_self:
+            scored_stock.append(entry)
+        else:
+            scored_macro.append(entry)
+
+    scored_stock.sort(key=lambda x: x["score"], reverse=True)
+    scored_macro.sort(key=lambda x: x["score"], reverse=True)
+
+    # 3. 混合配比組裝 Top 5 (個股焦點最多 max_stock_news 則 + 台股總經至少 min_macro_news 則，不足自動互補)
+    selected_stock = scored_stock[:max_stock_news]
+    needed_macro = max(min_macro_news, top_k - len(selected_stock))
+    selected_macro = scored_macro[:needed_macro]
+
+    combined = selected_stock + selected_macro
+    if len(combined) < top_k and len(scored_stock) > len(selected_stock):
+        extra = scored_stock[len(selected_stock) : len(selected_stock) + (top_k - len(combined))]
+        combined.extend(extra)
+
+    final_list = combined[:top_k]
+
+    def _parse_sort_key(item: Dict[str, Any]) -> str:
+        raw = str(item.get("pub_date") or item.get("published_at") or "")
+        m = re.search(r"(\d{4})[-/](\d{1,2})[-/](\d{1,2})(?:\s+(\d{1,2}):(\d{1,2})(?::(\d{1,2}))?)?", raw)
+        if m:
+            y = m.group(1)
+            mo = f"{int(m.group(2)):02d}"
+            d = f"{int(m.group(3)):02d}"
+            h = f"{int(m.group(4)):02d}" if m.group(4) else "00"
+            mi = f"{int(m.group(5)):02d}" if m.group(5) else "00"
+            s = f"{int(m.group(6)):02d}" if m.group(6) else "00"
+            return f"{y}-{mo}-{d} {h}:{mi}:{s}"
+        m2 = re.search(r"(\d{1,2})[-/](\d{1,2})(?:\s+(\d{1,2}):(\d{1,2}))?", raw)
+        if m2:
+            mo = f"{int(m2.group(1)):02d}"
+            d = f"{int(m2.group(2)):02d}"
+            h = f"{int(m2.group(3)):02d}" if m2.group(3) else "00"
+            mi = f"{int(m2.group(4)):02d}" if m2.group(4) else "00"
+            return f"9999-{mo}-{d} {h}:{mi}:00"
+        return raw
+
+    # 按照發布日期時間由新到舊排序 (越新的放越前面)
+    final_list.sort(key=_parse_sort_key, reverse=True)
+    for idx, n in enumerate(final_list, 1):
+        n["rank"] = idx
+
+    return final_list
+

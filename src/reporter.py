@@ -1,5 +1,6 @@
 import os
 import re
+import html
 import time
 import json
 import hashlib
@@ -398,6 +399,12 @@ HTML_DASHBOARD_TEMPLATE = """<!DOCTYPE html>
             color: #92400e;
             border: 1px solid #fde68a;
         }}
+        .badge-disc {{
+            background: #eef2ff;
+            color: #4338ca;
+            border: 1px solid #c7d2fe;
+            font-weight: 700;
+        }}
         .badge-hoarder {{
             background: #eff6ff;
             color: #1d4ed8;
@@ -522,6 +529,116 @@ HTML_DASHBOARD_TEMPLATE = """<!DOCTYPE html>
             color: #94a3b8;
             font-size: 0.88rem;
             padding: 20px 10px;
+        }}
+
+        /* 1.2 集保股權巨細動態戰情室 (Dispersion Section) */
+        .disp-card {{
+            background: #ffffff;
+            border-radius: 12px;
+            padding: 20px;
+            margin-bottom: 24px;
+            box-shadow: var(--shadow);
+            border: 1px solid var(--border);
+        }}
+        .disp-header {{
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 16px;
+            border-bottom: 1px solid var(--border);
+            padding-bottom: 12px;
+        }}
+        .disp-title {{
+            font-size: 1.15rem;
+            font-weight: 700;
+            color: var(--text-main);
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }}
+        .disp-grid {{
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 16px;
+            margin-bottom: 18px;
+        }}
+        @media (max-width: 768px) {{
+            .disp-grid {{
+                grid-template-columns: 1fr;
+            }}
+        }}
+        .disp-col {{
+            border-radius: 10px;
+            padding: 14px 18px;
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }}
+        .disp-col-major {{
+            background: #fff5f5;
+            border: 1px solid #fecaca;
+        }}
+        .disp-col-retail {{
+            background: #f0fdf4;
+            border: 1px solid #bbf7d0;
+        }}
+        .disp-col-title {{
+            font-size: 0.96rem;
+            font-weight: 700;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }}
+        .disp-major-title {{ color: #991b1b; }}
+        .disp-retail-title {{ color: #166534; }}
+        .disp-metrics-row {{
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 10px;
+            margin-top: 4px;
+        }}
+        .disp-metric-item {{
+            display: flex;
+            flex-direction: column;
+        }}
+        .disp-m-label {{
+            font-size: 0.78rem;
+            color: #64748b;
+        }}
+        .disp-m-val {{
+            font-size: 1.15rem;
+            font-weight: 700;
+            color: #0f172a;
+        }}
+        .disp-m-diff {{
+            font-size: 0.78rem;
+            font-weight: 600;
+            margin-left: 4px;
+        }}
+        .disp-banner {{
+            border-radius: 8px;
+            padding: 10px 14px;
+            font-size: 0.88rem;
+            font-weight: 600;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            margin-top: 14px;
+        }}
+        .disp-banner-bull {{
+            background: #fef2f2;
+            color: #991b1b;
+            border: 1px solid #fca5a5;
+        }}
+        .disp-banner-bear {{
+            background: #fefce8;
+            color: #854d0e;
+            border: 1px solid #fef08a;
+        }}
+        .disp-banner-neutral {{
+            background: #f1f5f9;
+            color: #334155;
+            border: 1px solid #cbd5e1;
         }}
 
         /* ==================== 視覺語意高亮元件 (UI Enhancement) ==================== */
@@ -671,6 +788,165 @@ HTML_DASHBOARD_TEMPLATE = """<!DOCTYPE html>
             border: 1px solid #fca5a5;
         }}
 
+        /* 權威財經新聞與催化劑雷達 (Top 5) */
+        .news-resonance-banner {{
+            padding: 12px 16px;
+            border-radius: 8px;
+            margin-bottom: 16px;
+            font-size: 0.92rem;
+            line-height: 1.5;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }}
+        .news-res-warn {{
+            background: #fffbeb;
+            border: 1px solid #fde68a;
+            border-left: 4px solid #d97706;
+            color: #92400e;
+        }}
+        .news-res-bull {{
+            background: #fef2f2;
+            border: 1px solid #fecaca;
+            border-left: 4px solid #dc2626;
+            color: #991b1b;
+        }}
+        .news-res-bear {{
+            background: #f0fdf4;
+            border: 1px solid #bbf7d0;
+            border-left: 4px solid #16a34a;
+            color: #166534;
+        }}
+        .news-res-neutral {{
+            background: #f8fafc;
+            border: 1px solid #e2e8f0;
+            border-left: 4px solid #3b82f6;
+            color: #334155;
+        }}
+        .news-list {{
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }}
+        .news-card {{
+            display: flex;
+            align-items: flex-start;
+            justify-content: flex-start;
+            gap: 14px;
+            padding: 12px 16px;
+            border-radius: 10px;
+            background: #f8fafc;
+            border: 1px solid #e2e8f0;
+            transition: all 0.15s ease;
+        }}
+        .news-card:hover {{
+            background: #ffffff;
+            border-color: #cbd5e1;
+            box-shadow: 0 2px 8px rgba(15, 23, 42, 0.05);
+        }}
+        .news-rank {{
+            min-width: 28px;
+            height: 28px;
+            border-radius: 7px;
+            background: #1e293b;
+            color: #ffffff;
+            font-weight: 700;
+            font-size: 0.85rem;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin-top: 2px;
+            flex-shrink: 0;
+        }}
+        .news-rank.top1 {{
+            background: #dc2626;
+        }}
+        .news-rank.top2 {{
+            background: #2563eb;
+        }}
+        .news-body {{
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+            flex: 1;
+            min-width: 0;
+            text-align: left;
+        }}
+        .news-title-link {{
+            font-size: 0.98rem;
+            font-weight: 600;
+            color: #0f172a;
+            text-decoration: none;
+            line-height: 1.45;
+            text-align: left;
+            display: block;
+        }}
+        .news-title-link:hover {{
+            color: #2563eb;
+            text-decoration: underline;
+        }}
+        .news-meta-row, .news-badges {{
+            display: flex;
+            flex-wrap: wrap;
+            align-items: center;
+            gap: 8px;
+            text-align: left;
+        }}
+        .news-badge {{
+            font-size: 0.75rem;
+            font-weight: 600;
+            padding: 2px 8px;
+            border-radius: 5px;
+            display: inline-flex;
+            align-items: center;
+            gap: 4px;
+        }}
+        .news-badge-stock, .nb-stock {{
+            background: #eff6ff;
+            color: #1d4ed8;
+            border: 1px solid #bfdbfe;
+        }}
+        .news-badge-macro, .nb-macro {{
+            background: #f1f5f9;
+            color: #475569;
+            border: 1px solid #cbd5e1;
+        }}
+        .news-badge-bull, .nb-bull {{
+            background: #fef2f2;
+            color: #dc2626;
+            border: 1px solid #fecaca;
+        }}
+        .news-badge-bear, .nb-bear {{
+            background: #f0fdf4;
+            color: #15803d;
+            border: 1px solid #bbf7d0;
+        }}
+        .news-badge-catalyst {{
+            background: #fefce8;
+            color: #a16207;
+            border: 1px solid #fde047;
+        }}
+        .news-badge-neutral, .nb-neutral {{
+            background: #f8fafc;
+            color: #475569;
+            border: 1px solid #e2e8f0;
+        }}
+        .news-badge-source, .news-source-tag {{
+            font-size: 0.75rem;
+            font-weight: 600;
+            color: #0369a1;
+            background: #e0f2fe;
+            border: 1px solid #bae6fd;
+            padding: 2px 8px;
+            border-radius: 5px;
+        }}
+        .news-time {{
+            font-size: 0.78rem;
+            color: #64748b;
+            white-space: nowrap;
+            font-family: inherit;
+        }}
+
         .footer {{
             text-align: center;
             font-size: 0.85rem;
@@ -734,8 +1010,14 @@ HTML_DASHBOARD_TEMPLATE = """<!DOCTYPE html>
             </table>
         </div>
 
+        <!-- 1.2 集保股權巨細動態：主力大戶(>200張) ✕ 散戶(<10張) 6個月趨勢戰情室 -->
+        {dispersion_section_html}
+
         <!-- 1.5 關鍵核心主力分點動態雷達 (長線囤貨大戶 ✕ 波段神算高手) -->
         {smart_brokers_html}
+
+        <!-- 1.8 權威財經新聞與催化劑雷達 (Top 5 ｜ MoneyDJ 理財網 ✕ 鉅亨網 Anue) -->
+        {news_section_html}
 
         <!-- 2. 分點進出紅綠雙欄對照看板 (Tabs) -->
         <div class="section-card">
@@ -832,6 +1114,12 @@ class ChipReporter:
                 for h in smart.get("hoarders", [])[:3]
             ],
             "windows": w_fp,
+            "news": [
+                n.get("title", "")[:30]
+                for n in (metrics.get("news_by_mode", {}).get(mode) or metrics.get("financial_news") or [])[:5]
+            ],
+            "gov_net1": (metrics.get("gov_discretionary_summary", {}) or {}).get("gov_banks", {}).get("net_1d", 0),
+            "disc_net5": (metrics.get("gov_discretionary_summary", {}) or {}).get("discretionary", {}).get("net_5d", 0),
         }
         if mode == "weekly":
             payload["disp_date"] = disp.get("date", "")
@@ -855,27 +1143,53 @@ class ChipReporter:
 
     def _format_tags_html(self, tags: List[str]) -> str:
         html = ""
+        rendered_types = set()
         for t in tags:
             if t == "隔日沖":
-                html += '<span class="badge badge-daytrader">⚠️隔日沖</span>'
+                if "daytrader" not in rendered_types:
+                    html += '<span class="badge badge-daytrader">⚠️隔日沖</span>'
+                    rendered_types.add("daytrader")
             elif t == "假外資/短線量化":
-                html += '<span class="badge badge-fake-foreign">⚡短線假外資</span>'
+                if "fake_foreign" not in rendered_types:
+                    html += '<span class="badge badge-fake-foreign">⚡短線假外資</span>'
+                    rendered_types.add("fake_foreign")
             elif t in ["外資", "波段外資"]:
-                html += '<span class="badge badge-foreign">🏢波段外資</span>'
+                if "foreign" not in rendered_types:
+                    html += '<span class="badge badge-foreign">🏢波段外資</span>'
+                    rendered_types.add("foreign")
             elif t == "官股":
-                html += '<span class="badge badge-gov">🏛️官股</span>'
+                if "gov" not in rendered_types:
+                    html += '<span class="badge badge-gov">🏛️官股</span>'
+                    rendered_types.add("gov")
+            elif "代操" in t:
+                if "disc" not in rendered_types:
+                    badge_title = "💼代操調節" if "調節" in t else ("💼認證代操" if "認證" in t else "💼代操鎖碼")
+                    html += f'<span class="badge badge-disc">{badge_title}</span>'
+                    rendered_types.add("disc")
             elif "囤貨" in t or "🔒" in t:
-                html += '<span class="badge badge-hoarder">🔒長線囤貨</span>'
+                if "hoarder" not in rendered_types:
+                    html += '<span class="badge badge-hoarder">🔒長線囤貨</span>'
+                    rendered_types.add("hoarder")
             elif "買底" in t:
-                html += '<span class="badge badge-swing-buy">🎯買底神手</span>'
+                if "swing_buy" not in rendered_types:
+                    html += '<span class="badge badge-swing-buy">🎯買底神手</span>'
+                    rendered_types.add("swing_buy")
             elif "賣頂" in t:
-                html += '<span class="badge badge-swing-sell">🎯波段賣頂</span>'
+                if "swing_sell" not in rendered_types:
+                    html += '<span class="badge badge-swing-sell">🎯波段賣頂</span>'
+                    rendered_types.add("swing_sell")
             elif "逃頂" in t or "了結" in t:
-                html += '<span class="badge badge-swing-sell">🎯高檔了結</span>'
+                if "swing_sell" not in rendered_types:
+                    html += '<span class="badge badge-swing-sell">🎯高檔了結</span>'
+                    rendered_types.add("swing_sell")
             elif "破線調節" in t:
-                html += '<span class="badge badge-swing-warn">⚠️破線調節</span>'
+                if "warn" not in rendered_types:
+                    html += '<span class="badge badge-swing-warn">⚠️破線調節</span>'
+                    rendered_types.add("warn")
             elif "波段倒貨" in t:
-                html += '<span class="badge badge-swing-warn">⚠️波段倒貨</span>'
+                if "warn" not in rendered_types:
+                    html += '<span class="badge badge-swing-warn">⚠️波段倒貨</span>'
+                    rendered_types.add("warn")
         return html
 
     def enhance_text_semantics(self, html_text: str, broker_names: List[str]) -> str:
@@ -928,6 +1242,9 @@ class ChipReporter:
             text = text.replace('隔日沖', '<span class="alert-pill">⚠️ 隔日沖</span>')
             text = text.replace('假外資', '<span class="badge badge-fake-foreign">⚡ 假外資</span>')
             text = text.replace('長線囤貨', '<span class="badge badge-hoarder">🔒 長線囤貨</span>')
+            text = text.replace('認證代操', '<span class="badge badge-disc">💼 認證代操</span>')
+            text = text.replace('代操鎖碼', '<span class="badge badge-disc">💼 代操鎖碼</span>')
+            text = text.replace('代操席位', '<span class="badge badge-disc">💼 代操席位</span>')
             text = text.replace('買底神手', '<span class="badge badge-swing-buy">🎯 買底神手</span>')
             text = text.replace('波段賣頂', '<span class="badge badge-swing-sell">🎯 波段賣頂</span>')
             text = text.replace('高檔了結', '<span class="badge badge-swing-sell">🎯 高檔了結</span>')
@@ -1180,6 +1497,320 @@ class ChipReporter:
             .replace("__MA60_JSON__", ma60_json)
         )
 
+    def _build_dispersion_section(self, stock_id: str, dispersion_data: Optional[Dict[str, Any]]) -> str:
+        """
+        生成【集保股權巨細動態：主力大戶(>200張) ✕ 散戶(<10張) 6個月趨勢戰情室】
+        包含：
+        1. 雙欄巨細數據對照卡 (持股比、人數、週增減、人均持股張數)
+        2. 6個月 (26週) 雙軸 ECharts 互動趨勢圖 (大戶比 ✕ 散戶比 ✕ 週收盤價)
+        3. 籌碼結構沉澱診斷條
+        """
+        if not dispersion_data or not dispersion_data.get("trend_chart"):
+            return ""
+
+        tc = dispersion_data.get("trend_chart", {})
+        dates = tc.get("dates", [])
+        if not dates:
+            return ""
+
+        dates_json = json.dumps(dates)
+        over200_json = json.dumps(tc.get("over_200_pct", []))
+        under10_json = json.dumps(tc.get("under_10_pct", []))
+        prices_json = json.dumps(tc.get("prices", []))
+        over200_cnt_json = json.dumps(tc.get("over_200_cnt", []))
+        under10_cnt_json = json.dumps(tc.get("under_10_cnt", []))
+
+        safe_id = re.sub(r"\W+", "_", str(stock_id))
+        chart_id = f"dispersion_chart_{safe_id}"
+
+        o200_ratio = dispersion_data.get("over_200_ratio", 0.0)
+        o200_diff = dispersion_data.get("over_200_diff", 0.0)
+        o200_cnt = dispersion_data.get("over_200_count", 0)
+        o200_cnt_diff = dispersion_data.get("over_200_count_diff", 0)
+        avg_o200 = dispersion_data.get("avg_shares_over_200", 0.0)
+
+        u10_ratio = dispersion_data.get("under_10_ratio", 0.0)
+        u10_diff = dispersion_data.get("under_10_diff", 0.0)
+        u10_cnt = dispersion_data.get("under_10_count", 0)
+        u10_cnt_diff = dispersion_data.get("under_10_count_diff", 0)
+        avg_u10 = dispersion_data.get("avg_shares_under_10", 0.0)
+
+        disp_date = dispersion_data.get("date", "最新週")
+
+        if o200_diff >= 0.3 and u10_diff <= -0.2:
+            banner_class = "disp-banner-bull"
+            banner_icon = "🔥"
+            banner_title = "【籌碼極度沉澱】大戶鎖碼 ✕ 散戶退場"
+            banner_desc = f">200張主力大戶本週加碼 {o200_diff:+.2f}% ✕ <10張散戶浮額退場 {u10_diff:+.2f}% (散戶人數減少 {abs(u10_cnt_diff):,} 人)！籌碼向少數特定強手高度集中，多方波段底氣深厚。"
+        elif o200_diff <= -0.3 and u10_diff >= 0.2:
+            banner_class = "disp-banner-bear"
+            banner_icon = "🚨"
+            banner_title = "【警訊！高檔籌碼散戶化】大戶調節 ✕ 散戶接刀"
+            banner_desc = f">200張主力大戶本週鬆動調節 {o200_diff:+.2f}% ✕ <10張散戶追高進場 {u10_diff:+.2f}% (散戶人數暴增 {u10_cnt_diff:+,} 人)！嚴防主力利用熱門題材掩護倒貨。"
+        else:
+            banner_class = "disp-banner-neutral"
+            banner_icon = "🔄"
+            banner_title = "【籌碼良性換手】主力平穩 ✕ 浮額有序整理"
+            banner_desc = f">200張主力大戶變動 {o200_diff:+.2f}%，<10張散戶變動 {u10_diff:+.2f}%，籌碼結構維持常態箱型換手。"
+
+        diff_o200_color = "#dc2626" if o200_diff >= 0 else "#16a34a"
+        diff_u10_color = "#16a34a" if u10_diff <= 0 else "#dc2626"
+        cnt_o200_color = "#dc2626" if o200_cnt_diff <= 0 else "#2563eb"
+        cnt_u10_color = "#16a34a" if u10_cnt_diff <= 0 else "#dc2626"
+
+        return f"""
+        <div class="disp-card">
+            <div class="disp-header">
+                <div class="disp-title">
+                    <span>🏛️</span>
+                    <span>集保股權巨細動態：主力大戶(>200張) ✕ 散戶(<10張) 6個月趨勢戰情室</span>
+                </div>
+                <div style="font-size:0.84rem; color:var(--text-muted);">
+                    基準週：<strong>{disp_date}</strong> ｜ 每週五盤後更新
+                </div>
+            </div>
+
+            <!-- 1. 雙欄巨細數據對照卡 -->
+            <div class="disp-grid">
+                <div class="disp-col disp-col-major">
+                    <div class="disp-col-title">
+                        <span class="disp-major-title">🔴 【主力大戶 (>200張)】 高度鎖碼看板</span>
+                        <span style="font-size:0.82rem; font-weight:600; color:{diff_o200_color};">週增減 {o200_diff:+.2f}%</span>
+                    </div>
+                    <div class="disp-metrics-row">
+                        <div class="disp-metric-item">
+                            <span class="disp-m-label">持股比例</span>
+                            <span class="disp-m-val">{o200_ratio:.2f}%</span>
+                        </div>
+                        <div class="disp-metric-item">
+                            <span class="disp-m-label">大戶人數 (週增減)</span>
+                            <span class="disp-m-val">{o200_cnt:,} <small style="font-size:0.75rem; color:{cnt_o200_color};">({o200_cnt_diff:+,})</small></span>
+                        </div>
+                        <div class="disp-metric-item">
+                            <span class="disp-m-label">人均持股</span>
+                            <span class="disp-m-val">{avg_o200:,.1f} <small style="font-size:0.75rem; color:#64748b;">張/人</small></span>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="disp-col disp-col-retail">
+                    <div class="disp-col-title">
+                        <span class="disp-retail-title">🟢 【純散戶 (<10張)】 浮額清洗看板</span>
+                        <span style="font-size:0.82rem; font-weight:600; color:{diff_u10_color};">週增減 {u10_diff:+.2f}%</span>
+                    </div>
+                    <div class="disp-metrics-row">
+                        <div class="disp-metric-item">
+                            <span class="disp-m-label">持股比例</span>
+                            <span class="disp-m-val">{u10_ratio:.2f}%</span>
+                        </div>
+                        <div class="disp-metric-item">
+                            <span class="disp-m-label">散戶人數 (週增減)</span>
+                            <span class="disp-m-val">{u10_cnt:,} <small style="font-size:0.75rem; color:{cnt_u10_color};">({u10_cnt_diff:+,})</small></span>
+                        </div>
+                        <div class="disp-metric-item">
+                            <span class="disp-m-label">人均持股</span>
+                            <span class="disp-m-val">{avg_u10:.2f} <small style="font-size:0.75rem; color:#64748b;">張/人</small></span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 2. 6 個月多軸 ECharts 互動趨勢圖 (持股比 ✕ 收盤價 ✕ 大戶散戶人數) -->
+            <div id="{chart_id}" style="width: 100%; height: 390px;"></div>
+
+            <!-- 3. 籌碼結構診斷條 -->
+            <div class="disp-banner {banner_class}">
+                <span>{banner_icon}</span>
+                <div><strong>{banner_title}</strong>：{banner_desc}</div>
+            </div>
+        </div>
+
+        <script>
+        (function() {{
+            var chartDom = document.getElementById('{chart_id}');
+            if (!chartDom || typeof echarts === 'undefined') return;
+            var myChart = echarts.init(chartDom);
+
+            var dates = {dates_json};
+            var over200 = {over200_json};
+            var under10 = {under10_json};
+            var prices = {prices_json};
+            var over200Cnt = {over200_cnt_json};
+            var under10Cnt = {under10_cnt_json};
+
+            var allPcts = over200.concat(under10).filter(function(v) {{ return v !== null && !isNaN(v); }});
+            var minPct = allPcts.length ? Math.max(0, Math.floor(Math.min.apply(null, allPcts) - 2)) : 0;
+            var maxPct = allPcts.length ? Math.min(100, Math.ceil(Math.max.apply(null, allPcts) + 2)) : 100;
+
+            var option = {{
+                backgroundColor: 'transparent',
+                animationDuration: 600,
+                tooltip: {{
+                    trigger: 'axis',
+                    backgroundColor: 'rgba(15, 23, 42, 0.94)',
+                    borderColor: '#334155',
+                    textStyle: {{ color: '#f8fafc', fontSize: 12 }},
+                    formatter: function(params) {{
+                        if (!params || !params.length) return '';
+                        var html = '<div style="font-weight:700;margin-bottom:6px;border-bottom:1px solid #475569;padding-bottom:4px;">📅 ' + params[0].axisValue + '</div>';
+                        var priceVal = 0, o200Val = 0, u10Val = 0;
+                        params.forEach(function(item) {{
+                            var valStr = item.value !== undefined ? item.value : '-';
+                            if (item.seriesName.indexOf('大戶持股比') !== -1) {{
+                                o200Val = item.value;
+                                html += '<div style="display:flex;justify-content:space-between;gap:14px;color:#fca5a5;"><span>' + item.marker + ' >200張大戶比:</span><b>' + valStr + '%</b></div>';
+                            }} else if (item.seriesName.indexOf('散戶持股比') !== -1) {{
+                                u10Val = item.value;
+                                html += '<div style="display:flex;justify-content:space-between;gap:14px;color:#86efac;"><span>' + item.marker + ' <10張散戶比:</span><b>' + valStr + '%</b></div>';
+                            }} else if (item.seriesName.indexOf('收盤價') !== -1) {{
+                                priceVal = item.value;
+                                html += '<div style="display:flex;justify-content:space-between;gap:14px;color:#93c5fd;"><span>' + item.marker + ' 週收盤價:</span><b>' + valStr + ' 元</b></div>';
+                            }} else if (item.seriesName.indexOf('大戶人數') !== -1) {{
+                                var cntFmt = typeof valStr === 'number' ? valStr.toLocaleString() : valStr;
+                                html += '<div style="display:flex;justify-content:space-between;gap:14px;color:#fdba74;"><span>' + item.marker + ' 大戶人數:</span><b>' + cntFmt + ' 人</b></div>';
+                            }} else if (item.seriesName.indexOf('散戶人數') !== -1) {{
+                                var cntFmt = typeof valStr === 'number' ? valStr.toLocaleString() : valStr;
+                                html += '<div style="display:flex;justify-content:space-between;gap:14px;color:#d8b4fe;"><span>' + item.marker + ' 散戶人數:</span><b>' + cntFmt + ' 人</b></div>';
+                            }}
+                        }});
+                        if (o200Val > 0 && u10Val > 0) {{
+                            var gap = (o200Val - u10Val).toFixed(2);
+                            html += '<div style="margin-top:5px;padding-top:4px;border-top:1px dashed #475569;color:#e2e8f0;font-size:11px;">主力散戶淨差: <b>+' + gap + '%</b></div>';
+                        }}
+                        return html;
+                    }}
+                }},
+                legend: {{
+                    data: ['>200張主力大戶持股比', '<10張純散戶持股比', '週收盤價', '>200張大戶人數', '<10張散戶人數'],
+                    top: 0,
+                    textStyle: {{ color: '#475569', fontSize: 12 }}
+                }},
+                grid: {{
+                    left: '2%',
+                    right: '2%',
+                    bottom: '6%',
+                    top: '15%',
+                    containLabel: true
+                }},
+                xAxis: {{
+                    type: 'category',
+                    data: dates,
+                    axisLine: {{ lineStyle: {{ color: '#cbd5e1' }} }},
+                    axisLabel: {{ color: '#64748b', fontSize: 11 }}
+                }},
+                yAxis: [
+                    {{
+                        type: 'value',
+                        name: '持股比 (%)',
+                        position: 'left',
+                        min: minPct,
+                        max: maxPct,
+                        axisLabel: {{ formatter: '{{value}}%', color: '#dc2626' }},
+                        axisLine: {{ show: true, lineStyle: {{ color: '#dc2626' }} }},
+                        splitLine: {{ lineStyle: {{ color: '#f1f5f9' }} }}
+                    }},
+                    {{
+                        type: 'value',
+                        name: '收盤價 (元)',
+                        position: 'right',
+                        scale: true,
+                        splitLine: {{ show: false }},
+                        axisLine: {{ show: true, lineStyle: {{ color: '#2563eb' }} }},
+                        axisLabel: {{ formatter: '{{value}}元', color: '#2563eb' }}
+                    }},
+                    {{
+                        type: 'value',
+                        name: '大戶人數 (人)',
+                        position: 'left',
+                        offset: 48,
+                        scale: true,
+                        splitLine: {{ show: false }},
+                        axisLine: {{ show: true, lineStyle: {{ color: '#ea580c' }} }},
+                        axisLabel: {{ formatter: '{{value}}人', color: '#ea580c' }}
+                    }},
+                    {{
+                        type: 'value',
+                        name: '散戶人數 (人)',
+                        position: 'right',
+                        offset: 50,
+                        scale: true,
+                        splitLine: {{ show: false }},
+                        axisLine: {{ show: true, lineStyle: {{ color: '#7c3aed' }} }},
+                        axisLabel: {{ formatter: '{{value}}人', color: '#7c3aed' }}
+                    }}
+                ],
+                series: [
+                    {{
+                        name: '>200張主力大戶持股比',
+                        type: 'line',
+                        yAxisIndex: 0,
+                        smooth: true,
+                        symbol: 'circle',
+                        symbolSize: 6,
+                        lineStyle: {{ width: 2.8, color: '#dc2626' }},
+                        itemStyle: {{ color: '#dc2626' }},
+                        data: over200
+                    }},
+                    {{
+                        name: '<10張純散戶持股比',
+                        type: 'line',
+                        yAxisIndex: 0,
+                        smooth: true,
+                        symbol: 'rect',
+                        symbolSize: 6,
+                        lineStyle: {{ width: 2.2, color: '#16a34a', type: 'dashed' }},
+                        itemStyle: {{ color: '#16a34a' }},
+                        data: under10
+                    }},
+                    {{
+                        name: '週收盤價',
+                        type: 'line',
+                        yAxisIndex: 1,
+                        smooth: true,
+                        symbol: 'none',
+                        lineStyle: {{ width: 1.8, color: '#2563eb' }},
+                        areaStyle: {{
+                            color: new echarts.graphic.LinearGradient(0, 0, 0, 1, [
+                                {{ offset: 0, color: 'rgba(37, 99, 235, 0.20)' }},
+                                {{ offset: 1, color: 'rgba(37, 99, 235, 0.01)' }}
+                            ])
+                        }},
+                        itemStyle: {{ color: '#2563eb' }},
+                        data: prices
+                    }},
+                    {{
+                        name: '>200張大戶人數',
+                        type: 'line',
+                        yAxisIndex: 2,
+                        smooth: true,
+                        symbol: 'diamond',
+                        symbolSize: 7,
+                        lineStyle: {{ width: 2, color: '#ea580c', type: 'dotted' }},
+                        itemStyle: {{ color: '#ea580c' }},
+                        data: over200Cnt
+                    }},
+                    {{
+                        name: '<10張散戶人數',
+                        type: 'line',
+                        yAxisIndex: 3,
+                        smooth: true,
+                        symbol: 'triangle',
+                        symbolSize: 6,
+                        lineStyle: {{ width: 2, color: '#7c3aed' }},
+                        itemStyle: {{ color: '#7c3aed' }},
+                        data: under10Cnt
+                    }}
+                ]
+            }};
+
+            myChart.setOption(option);
+            window.addEventListener('resize', function() {{
+                myChart.resize();
+            }});
+        }})();
+        </script>
+        """
+
     def _build_tag_badges(self, tags: List[str]) -> str:
         return self._format_tags_html(tags)
 
@@ -1215,6 +1846,23 @@ class ChipReporter:
         swing_list = smart_b.get("swing_masters", [])
         h_str = ", ".join([f"{h['broker_name']}({h['period']}日淨買{h['net_shares']:,}張, 純度{h['purity']:.1f}%)" for h in hoarders_list[:3]]) or "無明顯單一囤貨分點"
         s_str = "；".join([f"**{s['broker_name']}**（{s['role']}：{s.get('plain_summary') or s.get('desc', '')}）" for s in swing_list[:3]]) or "無極端轉折動作"
+
+        gov_disc = metrics.get("gov_discretionary_summary", {}) or {}
+        gov_b = gov_disc.get("gov_banks", {}) or {}
+        disc_b = gov_disc.get("discretionary", {}) or {}
+
+        news_items = (metrics.get("news_by_mode", {}).get(mode) or metrics.get("financial_news") or [])[:5]
+        res_info = (metrics.get("resonance_by_mode", {}).get(mode) or metrics.get("chip_news_resonance") or {})
+        res_line = f"{res_info.get('label', '消息與籌碼中性驗證')} — {res_info.get('desc', '')}" if res_info else "以關鍵分點實際進出為核心依據。"
+        if news_items:
+            news_md_lines = "\n".join(
+                [
+                    f"  {n.get('rank', idx)}. **[{n.get('scope', '')}｜{n.get('sentiment', '')}]** {n.get('title', '')} *({n.get('source', '')} {n.get('pub_date', '')})*"
+                    for idx, n in enumerate(news_items, 1)
+                ]
+            )
+        else:
+            news_md_lines = "  * 近期無重大異常財經消息，維持常態追蹤。"
 
         if mode == "daily":
             vwap_1 = m1.get("vwap_buy_cost", ref_price)
@@ -1255,8 +1903,12 @@ class ChipReporter:
 
 ### 一、當日多空動態與三大法人態度
 * **法人進出總覽**：外資 {f_net:+,} 張、投信 {t_net:+,} 張、自營商 {d_net:+,} 張，合計淨買賣超 {total_net:+,} 張。整體判定為：**{inst_attitude}**。
+* **🏛️ 八大官股與國家隊/代操動態**：
+  * **八大官股態度**：{gov_b.get('action_label', '⚪ 官股中性')}（今日 {gov_b.get('net_1d', 0):+,} 張、近5日累計 {gov_b.get('net_5d', 0):+,} 張）。{gov_b.get('action_desc', '')}
+  * **委外代操席位**：{disc_b.get('action_label', '⚪ 代操中性')}（今日 {disc_b.get('net_1d', 0):+,} 張、近5日累計 {disc_b.get('net_5d', 0):+,} 張、近20日累計 {disc_b.get('net_20d', 0):+,} 張）。{disc_b.get('action_desc', '')}
 * **散戶資券消長**：融資單日增減 {m_diff:+,} 張（融資餘額 {m_bal:,} 張，券資比 {sm_ratio:.2f}%）。{sediment_desc}。
 {tech_line}
+* **消息面 ✕ 籌碼面交叉印證**：**{res_line}**
 
 ---
 
@@ -1270,6 +1922,8 @@ class ChipReporter:
 * **短線成本位階**：
   * **1 日主力成本 (VWAP)**：{fmt_price(vwap_1)} 元 (現價乖離 {bias_1:+.2f}%)
   * **5 日主力成本 (VWAP)**：{fmt_price(vwap_5)} 元 (現價乖離 {bias_5:+.2f}%)
+* **當日權威財經焦點 (MoneyDJ ✕ 鉅亨網 Top 5)**：
+{news_md_lines}
 
 ---
 
@@ -1302,6 +1956,9 @@ class ChipReporter:
 ### 一、集保大戶週趨勢與籌碼沉澱驗證
 * **集保戶股權分散動態**：最新一週籌碼集中度為 **{c_ratio:.2f}%** (週增減 **{c_diff:+.2f}%**)，千張大戶持股比高達 **{maj_ratio:.2f}%**。
 * **籌碼沉澱結構判讀**：{'大戶籌碼持續集中，籌碼向強手沉澱，中長線架構健康' if c_diff >= 0 else '大戶持股比例微幅下滑，需留意部分籌碼分散至散戶端'}。
+* **🏛️ 八大官股與國家隊/代操波段動態**：
+  * **八大官股態度**：{gov_b.get('action_label', '⚪ 官股中性')}（近5日累計 {gov_b.get('net_5d', 0):+,} 張、近20日累計 {gov_b.get('net_20d', 0):+,} 張）。{gov_b.get('action_desc', '')}
+  * **委外代操席位**：{disc_b.get('action_label', '⚪ 代操中性')}（近5日累計 {disc_b.get('net_5d', 0):+,} 張、近20日累計高達 {disc_b.get('net_20d', 0):+,} 張）。{disc_b.get('action_desc', '')}
 * **融資對沖格局**：當前融資餘額為 {m_bal:,} 張（單日增減 {m_diff:+,} 張），{derived['sediment']['desc']}。
 
 ---
@@ -1315,11 +1972,14 @@ class ChipReporter:
 
 ---
 
-### 三、關鍵券商波段建倉與真假外資意圖
+### 三、關鍵券商波段建倉與權威財經消息交叉驗證
 * **關鍵神準主力分點（1 年期歷史波段回測認證）**：
   * **🔒 長線囤貨大戶**：{h_str}
   * **🎯 波段神算高手**：{s_str}
 * **技術面與均線結構**：{derived['ma']['desc']}，成交量為 5 日均量之 {derived['volume']['text']}。
+* **消息面 ✕ 籌碼面交叉印證**：**{res_line}**
+* **本週五大權威財經焦點 (MoneyDJ ✕ 鉅亨網 Top 5)**：
+{news_md_lines}
 
 ---
 
@@ -1340,12 +2000,16 @@ class ChipReporter:
                 cont_tag = '<span style="color:#2563eb;font-weight:600;font-size:0.78rem;">● 跨週期持續鎖碼</span>' if h.get("continuous") else '<span style="color:#64748b;font-size:0.78rem;">● 獨立波段囤貨</span>'
                 purity_val = h.get("purity", 0.0)
                 purity_color = "#dc2626" if purity_val >= 80 else "#2563eb"
+                is_d = h.get("is_discretionary", False) or "代操" in str(h.get("badge", ""))
+                disc_badge = '<span class="badge badge-disc" style="margin-left:4px;">💼代操鎖碼</span>' if is_d else ''
+                role_badge_h = '<span class="badge badge-disc">💼代操鎖碼</span>' if h.get("badge") == "💼代操鎖碼" else '<span class="badge badge-hoarder">🔒長線囤貨</span>'
                 h_items += f"""
                 <div class="sb-item">
                     <div class="sb-item-header">
                         <div class="sb-item-name">
                             <span>🏢 {h.get('broker_name')}</span>
-                            <span class="badge badge-hoarder">🔒長線囤貨</span>
+                            {role_badge_h}
+                            {disc_badge if h.get("badge") != "💼代操鎖碼" else ""}
                         </div>
                         <div style="font-size:0.85rem;font-weight:700;color:{purity_color};">
                             純度 {purity_val:.1f}%
@@ -1367,6 +2031,8 @@ class ChipReporter:
         if swing_masters:
             s_items = ""
             for s in swing_masters:
+                is_sd = s.get("is_discretionary", False)
+                disc_badge_s = '<span class="badge badge-disc" style="margin-left:4px;">💼代操席位</span>' if is_sd else ''
                 role_str = s.get("role", "")
                 if role_str == "🎯波段賣頂神手":
                     role_badge = '<span class="badge badge-swing-sell">🎯波段賣頂神手 (🚨本波出貨)</span>'
@@ -1408,6 +2074,7 @@ class ChipReporter:
                         <div class="sb-item-name">
                             <span>🏢 {s.get('broker_name')}</span>
                             {role_badge}
+                            {disc_badge_s}
                         </div>
                         <div style="font-size:0.85rem;font-weight:700;color:{action_color};">
                             {val_display}
@@ -1447,6 +2114,111 @@ class ChipReporter:
                         {s_items}
                     </div>
                 </div>
+            </div>
+        </div>
+        """
+
+    @staticmethod
+    def _get_news_sort_key(item: Dict[str, Any]) -> str:
+        raw = str(item.get("pub_date") or item.get("published_at") or "")
+        m = re.search(r"(\d{4})[-/](\d{1,2})[-/](\d{1,2})(?:\s+(\d{1,2}):(\d{1,2})(?::(\d{1,2}))?)?", raw)
+        if m:
+            y = m.group(1)
+            mo = f"{int(m.group(2)):02d}"
+            d = f"{int(m.group(3)):02d}"
+            h = f"{int(m.group(4)):02d}" if m.group(4) else "00"
+            mi = f"{int(m.group(5)):02d}" if m.group(5) else "00"
+            s = f"{int(m.group(6)):02d}" if m.group(6) else "00"
+            return f"{y}-{mo}-{d} {h}:{mi}:{s}"
+        m2 = re.search(r"(\d{1,2})[-/](\d{1,2})(?:\s+(\d{1,2}):(\d{1,2}))?", raw)
+        if m2:
+            mo = f"{int(m2.group(1)):02d}"
+            d = f"{int(m2.group(2)):02d}"
+            h = f"{int(m2.group(3)):02d}" if m2.group(3) else "00"
+            mi = f"{int(m2.group(4)):02d}" if m2.group(4) else "00"
+            return f"9999-{mo}-{d} {h}:{mi}:00"
+        return raw
+
+    def _build_news_section(
+        self,
+        news_list: List[Dict[str, Any]],
+        resonance: Dict[str, str],
+        mode: str = "daily",
+    ) -> str:
+        """建立「📰 權威財經新聞與催化劑雷達 (Top 5)」HTML 區塊"""
+        if not news_list:
+            return ""
+
+        res_tone = (resonance or {}).get("tone", "neutral")
+        res_label = html.escape((resonance or {}).get("label", "消息與籌碼中性觀察"))
+        res_desc = html.escape((resonance or {}).get("desc", "正在追蹤權威媒體催化劑與主力分點動向。"))
+        if res_tone not in ("bull", "bear", "warn", "neutral"):
+            res_tone = "neutral"
+
+        mode_subtitle = (
+            "當日個股/供應鏈催化劑 ✕ 台股總經焦點 (MoneyDJ / 鉅亨網 權威白名單)"
+            if mode == "daily"
+            else "本週關鍵財經要聞 ✕ 產業催化劑與籌碼共振檢驗 (MoneyDJ / 鉅亨網 權威白名單)"
+        )
+
+        sorted_news = sorted(news_list or [], key=self._get_news_sort_key, reverse=True)
+        cards_html = ""
+        for idx, item in enumerate(sorted_news[:5], start=1):
+            title_esc = html.escape(str(item.get("title", "")))
+            url_esc = html.escape(str(item.get("url", "#")))
+            source_esc = html.escape(str(item.get("source", "財經媒體")))
+            
+            raw_pub = str(item.get("pub_date") or item.get("published_at") or "")
+            pub_mmdd = ""
+            m_date = re.search(r"(?:(\d{4})[-/])?(\d{1,2})[-/](\d{1,2})", raw_pub)
+            if m_date:
+                pub_mmdd = f"{int(m_date.group(2)):02d}/{int(m_date.group(3)):02d}"
+            elif raw_pub:
+                pub_mmdd = raw_pub[:5]
+            pub_display = pub_mmdd if pub_mmdd else "今日"
+
+            category = str(item.get("category", "stock"))
+            cat_label = html.escape(str(item.get("category_label", "🎯 個股焦點" if category == "stock" else "🌐 台股總經")))
+            cat_css = "news-badge-stock" if category == "stock" else "news-badge-macro"
+
+            sentiment = str(item.get("sentiment", "neutral"))
+            sent_label = html.escape(str(item.get("sentiment_label", "📊 焦點動態")))
+            if sentiment == "bull":
+                sent_css = "news-badge-bull"
+            elif sentiment == "bear":
+                sent_css = "news-badge-bear"
+            elif sentiment == "catalyst":
+                sent_css = "news-badge-catalyst"
+            else:
+                sent_css = "news-badge-neutral"
+
+            rank_cls = "news-rank top3" if idx <= 3 else "news-rank"
+            cards_html += f"""
+                <div class="news-card">
+                    <div class="{rank_cls}">{idx}</div>
+                    <div class="news-body">
+                        <a class="news-title-link" href="{url_esc}" target="_blank" rel="noopener noreferrer">{title_esc}</a>
+                        <div class="news-meta-row">
+                            <span class="news-badge {cat_css}">{cat_label}</span>
+                            <span class="news-badge {sent_css}">{sent_label}</span>
+                            <span class="news-badge news-badge-source">🏛️ {source_esc}</span>
+                            <span class="news-time">🕒 {pub_display}</span>
+                        </div>
+                    </div>
+                </div>
+            """
+
+        return f"""
+        <div class="section-card">
+            <h2 class="section-title">
+                📰 權威財經新聞與催化劑雷達 (Top 5)
+                <span style="font-size:0.84rem;color:var(--text-muted);font-weight:normal;margin-left:auto;">{mode_subtitle}</span>
+            </h2>
+            <div class="news-resonance-banner {res_tone}">
+                <div>💡 <strong>消息 ✕ 籌碼共振檢驗：【{res_label}】</strong> — {res_desc}</div>
+            </div>
+            <div class="news-list">
+                {cards_html}
             </div>
         </div>
         """
@@ -1527,6 +2299,10 @@ class ChipReporter:
         disp_foreign = disp.get("foreign_ratio", 0.0)
         disp_dir = disp.get("director_ratio", 0.0)
         disp_date = disp.get("date", "最新週")
+        o200_ratio = disp.get("over_200_ratio", disp_conc)
+        o200_diff = disp.get("over_200_diff", disp_diff)
+        u10_ratio = disp.get("under_10_ratio", 0.0)
+        u10_diff = disp.get("under_10_diff", 0.0)
 
         # 3. 籌碼峰與基本面
         poc_l = prof.get("poc_low", 0.0)
@@ -1611,19 +2387,19 @@ class ChipReporter:
 
         card_disp = f"""
             <div class="radar-card">
-                <div class="radar-card-title">📊 集保大戶週持股動態 (TDCC)</div>
+                <div class="radar-card-title">📊 集保股權動態 (大戶 vs 散戶)</div>
                 <div class="radar-items">
                     <div class="radar-item">
-                        <div class="radar-label">最新集中度</div>
-                        <div class="radar-val">{disp_conc:.2f}%</div>
+                        <div class="radar-label">>200張大戶</div>
+                        <div class="radar-val">{o200_ratio:.1f}% <span style="font-size:0.75rem;" class="{'val-red' if o200_diff >= 0 else 'val-green'}">({o200_diff:+.2f}%)</span></div>
                     </div>
                     <div class="radar-item">
-                        <div class="radar-label">週增減變化</div>
-                        <div class="radar-val {'val-red' if disp_diff >= 0 else 'val-green'}">{disp_diff:+.2f}%</div>
+                        <div class="radar-label"><10張散戶</div>
+                        <div class="radar-val">{u10_ratio:.1f}% <span style="font-size:0.75rem;" class="{'val-green' if u10_diff <= 0 else 'val-red'}">({u10_diff:+.2f}%)</span></div>
                     </div>
                     <div class="radar-item">
-                        <div class="radar-label">大戶持股比</div>
-                        <div class="radar-val">{disp_major:.2f}%</div>
+                        <div class="radar-label">千張大戶持股比</div>
+                        <div class="radar-val">{disp_major:.1f}%</div>
                     </div>
                     <div class="radar-item">
                         <div class="radar-label">外資持股比</div>
@@ -1722,20 +2498,65 @@ class ChipReporter:
             </div>
         """
 
+        # 5. 八大官股與國家隊/代操動態卡片
+        gov_disc = metrics.get("gov_discretionary_summary", {}) or {}
+        gov_data = gov_disc.get("gov_banks", {}) or {}
+        disc_data = gov_disc.get("discretionary", {}) or {}
+
+        g_net1 = gov_data.get("net_1d", 0)
+        g_net5 = gov_data.get("net_5d", 0)
+        g_label = gov_data.get("action_label", "⚪ 官股中性")
+
+        d_net1 = disc_data.get("net_1d", 0)
+        d_net5 = disc_data.get("net_5d", 0)
+        d_label = disc_data.get("action_label", "⚪ 代操中性")
+
+        card_gov_disc = f"""
+            <div class="radar-card">
+                <div class="radar-card-title">🏛️ 八大官股與國家隊/代操動態</div>
+                <div class="radar-items">
+                    <div class="radar-item">
+                        <div class="radar-label">官股單日買賣超</div>
+                        <div class="radar-val {'val-red' if g_net1 >= 0 else 'val-green'}">{g_net1:+,} 張</div>
+                    </div>
+                    <div class="radar-item">
+                        <div class="radar-label">官股近5日累計</div>
+                        <div class="radar-val {'val-red' if g_net5 >= 0 else 'val-green'}">{g_net5:+,} 張</div>
+                    </div>
+                    <div class="radar-item">
+                        <div class="radar-label">官股態度評級</div>
+                        <div class="radar-val" style="font-size:0.83rem;">{g_label}</div>
+                    </div>
+                    <div class="radar-item">
+                        <div class="radar-label">代操單日買賣超</div>
+                        <div class="radar-val {'val-red' if d_net1 >= 0 else 'val-green'}">{d_net1:+,} 張</div>
+                    </div>
+                    <div class="radar-item">
+                        <div class="radar-label">代操近5日累計</div>
+                        <div class="radar-val {'val-red' if d_net5 >= 0 else 'val-green'}">{d_net5:+,} 張</div>
+                    </div>
+                    <div class="radar-item">
+                        <div class="radar-label">代操鎖碼評級</div>
+                        <div class="radar-val" style="font-size:0.83rem;">{d_label}</div>
+                    </div>
+                </div>
+            </div>
+        """
+
         if mode == "daily":
-            radar_cards_html = f"{card_inst}\n{card_margin}\n{card_tech}"
+            radar_cards_html = f"{card_inst}\n{card_gov_disc}\n{card_margin}\n{card_tech}"
         else:
-            radar_cards_html = f"{card_inst}\n{card_margin}\n{card_tech}\n{card_disp}\n{card_poc}"
+            radar_cards_html = f"{card_inst}\n{card_gov_disc}\n{card_margin}\n{card_tech}\n{card_disp}\n{card_poc}"
 
         macro_alert_html = ""
         if macro_signals and mode == "weekly":
             alerts_text = "<br>".join(macro_signals)
             macro_alert_html = f'<div class="macro-alert-box">{alerts_text}</div>'
         elif mode == "daily":
-            # 日報顯示短線隔日沖、1年認證波段高手出貨/抄底、法人異常與技術面共振警示
+            # 日報顯示短線隔日沖、1年認證波段高手出貨/抄底、法人異常、官股/代操與技術面共振警示
             daily_alerts = [
                 s for s in macro_signals
-                if any(k in s for k in ("隔日沖", "量化", "法人", "金叉", "多頭排列", "共振", "出量", "沉澱", "警戒", "賣頂", "抄底", "高檔了結", "破線調節"))
+                if any(k in s for k in ("隔日沖", "量化", "法人", "金叉", "多頭排列", "共振", "出量", "沉澱", "警戒", "賣頂", "抄底", "高檔了結", "破線調節", "八大官股", "國家隊", "代操", "護盤"))
             ]
             if daily_alerts:
                 macro_alert_html = f'<div class="macro-alert-box">{"<br>".join(daily_alerts)}</div>'
@@ -1991,7 +2812,11 @@ class ChipReporter:
         generated_at_sec = now.strftime("%Y-%m-%d %H:%M:%S")
 
         kline_section_html = self._build_kline_section(stock_label, prof.get("kline_data"))
+        dispersion_section_html = self._build_dispersion_section(stock_label, metrics.get("dispersion_summary", {}))
         smart_brokers_html = self._build_smart_brokers_section(metrics.get("smart_brokers", {}))
+        news_list = (metrics.get("news_by_mode") or {}).get(mode, metrics.get("news_items", []))
+        resonance = (metrics.get("resonance_by_mode") or {}).get(mode, metrics.get("chip_news_resonance", {}))
+        news_section_html = self._build_news_section(news_list, resonance, mode=mode)
 
         return HTML_DASHBOARD_TEMPLATE.format(
             stock_id=stock_id,
@@ -2004,7 +2829,9 @@ class ChipReporter:
             mode_badge_html=mode_badge_html,
             radar_cards_html=radar_cards_html,
             matrix_section_title=matrix_section_title,
+            dispersion_section_html=dispersion_section_html,
             smart_brokers_html=smart_brokers_html,
+            news_section_html=news_section_html,
             ai_section_title=ai_section_title,
             kline_section_html=kline_section_html,
             generated_at_minute=generated_at_minute,
@@ -2018,7 +2845,7 @@ class ChipReporter:
         )
 
     def build_prompt(self, metrics: Dict[str, Any], mode: str = "daily") -> str:
-        """高密度結構化 Prompt 生成器 (已針對日報與週報壓縮 ~45% Input Token 並強化 1 年回測高手基因解析)"""
+        """高密度結構化 Prompt 生成器 (已針對日報與週報壓縮 ~45% Input Token 並強化 1 年回測高手基因與權威財經新聞共振解析)"""
         stock_id = metrics.get("stock_id", "")
         stock_name = metrics.get("stock_name", "")
         stock_label = f"{stock_id} {stock_name}" if stock_name and stock_name != stock_id else stock_id
@@ -2038,6 +2865,37 @@ class ChipReporter:
         hoarders_summary = ", ".join([f"{h['broker_name']}({h['period']}D+{h['net_shares']:,}張/{h['ratio']}%,純度{h['purity']:.0f}%)" for h in hoarders[:3]]) or "無單一高純度囤貨分點"
         swing_summary = "；".join([f"{s['broker_name']}[{s['role']}: {s.get('plain_summary') or s.get('desc', '')}]" for s in swing_masters[:4]]) or "維持常態換手"
 
+        news_list = (metrics.get("news_by_mode") or {}).get(mode, metrics.get("news_items", []))
+        sorted_prompt_news = sorted(news_list or [], key=self._get_news_sort_key, reverse=True)
+        resonance = (metrics.get("resonance_by_mode") or {}).get(mode, metrics.get("chip_news_resonance", {}))
+        res_summary = f"{resonance.get('label', '中性')}: {resonance.get('desc', '')}" if resonance else "中性觀察"
+        news_summary = "；".join(
+            [
+                f"({i+1})[{n.get('category_label','新聞')}|{n.get('sentiment_label','動態')}|{n.get('source','')}] {n.get('title','')}"
+                for i, n in enumerate(sorted_prompt_news[:5])
+            ]
+        ) or "近期無特殊重大個股新聞"
+
+        gov_disc = metrics.get("gov_discretionary_summary", {}) or {}
+        gov_info = gov_disc.get("gov_banks", {}) or {}
+        disc_info = gov_disc.get("discretionary", {}) or {}
+        gov_line_daily = (
+            f"1D={gov_info.get('net_1d', 0):+,}張, 5D={gov_info.get('net_5d', 0):+,}張 ({gov_info.get('action_label', '中性')})"
+            if gov_info else "中性常態進出"
+        )
+        disc_line_daily = (
+            f"1D={disc_info.get('net_1d', 0):+,}張, 5D={disc_info.get('net_5d', 0):+,}張, 20D={disc_info.get('net_20d', 0):+,}張 ({disc_info.get('action_label', '中性')})"
+            if disc_info else "中性常態進出"
+        )
+        gov_line_weekly = (
+            f"5D={gov_info.get('net_5d', 0):+,}張, 20D={gov_info.get('net_20d', 0):+,}張 ({gov_info.get('action_label', '中性')})"
+            if gov_info else "中性常態進出"
+        )
+        disc_line_weekly = (
+            f"5D={disc_info.get('net_5d', 0):+,}張, 20D={disc_info.get('net_20d', 0):+,}張 ({disc_info.get('action_label', '中性')})"
+            if disc_info else "中性常態進出"
+        )
+
         if mode == "daily":
             m1 = metrics.get("windows_metrics", {}).get(1, {})
             m5 = metrics.get("windows_metrics", {}).get(5, {})
@@ -2055,16 +2913,19 @@ class ChipReporter:
             return f"""# 台股當日籌碼戰術快報 ({stock_label} | {trade_date} | {derived['price_label']}:{ref_p_str}元)
 [量化事實(嚴禁矛盾)]
 - 法人: 外資{inst.get('foreign_buy_net', 0):+,}/投信{inst.get('investment_trust_net', 0):+,}/自營{inst.get('dealer_net', 0):+,}/合計{inst.get('institutional_total_net', 0):+,}張 ({derived['inst']['label']}:{derived['inst']['desc']})
-- 資券: 融資{margin.get('margin_diff', 0):+,}張(餘{margin.get('margin_balance', 0):,})/融券{margin.get('short_diff', 0):+,}張 ({derived['sediment']['label']}:{derived['sediment']['desc']})
+- 🏛️八大官股與代操: 官股({gov_line_daily}) | 代操({disc_line_daily})
+- 資券與集保(TDCC): 融資{margin.get('margin_diff', 0):+,}張(餘{margin.get('margin_balance', 0):,}) | >200張主力={disp.get('over_200_ratio', disp.get('concentration_ratio', 0)):.1f}%({disp.get('over_200_diff', disp.get('concentration_diff', 0)):+.2f}%) | <10張散戶={disp.get('under_10_ratio', 0):.1f}%({disp.get('under_10_diff', 0):+.2f}%)
 - 技術: {tech_desc}
 - 🔒長線囤貨大戶: {hoarders_summary}
 - 🎯1年回測認證波段高手: {swing_summary}
 - 1D主力: VWAP={fmt_price(m1.get('vwap_buy_cost', 0.0))}元({m1.get('bias_pct', 0.0):+.2f}%), 買前3:[{b1_str}], 賣前3:[{s1_str}], 警示:{'; '.join(m1.get('behavior_flags', [])) or '無'}
 - 5D主力: VWAP={fmt_price(m5.get('vwap_buy_cost', 0.0))}元({m5.get('bias_pct', 0.0):+.2f}%), 買前3:[{b5_str}], 賣前3:[{s5_str}]
+- 📰當日Top5權威財經新聞: {news_summary}
+- 💡消息✕籌碼共振檢驗: {res_summary}
 
-請以台股實戰操盤手視角輸出精煉 Markdown (300~420字):
+請以台股實戰操盤手視角輸出精煉 Markdown (320~450字):
 1. **當日多空動態與技術/籌碼共振**(須與上方系統判定一致)
-2. **關鍵分點與1年認證波段高手意圖**(點名1年回測高手歷史勝率、前波高低點實績與近5日最新動作，及隔日沖/囤貨大戶動態)
+2. **關鍵分點、1年認證波段高手、官股代操與新聞催化劑交叉驗證**(點名1年回測高手歷史勝率與近5日動作，剖析八大官股逆勢/調節態度與委外代操席位囤貨或結算動向，並檢驗當日Top5新聞屬利多真吸籌、利多出盡逢高調節或利空測試洗盤)
 3. **明日早盤實戰操盤劇本**(開高因應、平盤/回檔之5D VWAP即時防守價與停損點)
 """
 
@@ -2083,10 +2944,13 @@ class ChipReporter:
             return f"""# 台股機構籌碼戰略週報 ({stock_label} | {trade_date} | {derived['price_label']}:{ref_p_str}元 | {prof.get('sector', '台股')})
 [宏觀與1年回測主力結構(嚴禁矛盾)]
 - 法人: 外資{inst.get('foreign_buy_net', 0):+,}/投信{inst.get('investment_trust_net', 0):+,}/合計{inst.get('institutional_total_net', 0):+,}張 ({derived['inst']['label']}), 外資持股{inst.get('foreign_ratio', 0)}%
-- 資券與集保(TDCC): 融資餘{margin.get('margin_balance', 0):,}張({margin.get('margin_diff', 0):+,}) | 集保集中度{disp.get('concentration_ratio', 0)}%(週增減{disp.get('concentration_diff', 0):+.2f}%), 千張大戶{disp.get('major_holder_ratio', 0)}%
+- 🏛️八大官股與代操波段結構: 官股={gov_line_weekly} | 代操={disc_line_weekly}
+- 資券與集保(TDCC): 融資餘{margin.get('margin_balance', 0):,}張({margin.get('margin_diff', 0):+,}) | >200張大戶={disp.get('over_200_ratio', disp.get('concentration_ratio', 0)):.1f}%(週{disp.get('over_200_diff', disp.get('concentration_diff', 0)):+.2f}%, {disp.get('over_200_count', 0)}人) | <10張散戶={disp.get('under_10_ratio', 0):.1f}%(週{disp.get('under_10_diff', 0):+.2f}%, {disp.get('under_10_count', 0)}人) | 千張大戶={disp.get('major_holder_ratio', 0)}%
 - 60D籌碼密集峰(POC): {prof.get('poc_low', 0)}~{prof.get('poc_high', 0)}元 (量佔比{prof.get('poc_volume_ratio', 0)}%) | 估值: PE={prof.get('pe_ratio', 'N/A')}, PB={prof.get('pb_ratio', 'N/A')}, 殖利率={prof.get('yield_pct', 'N/A')}%
 - 🔒長線囤貨大戶(120~240D): {hoarders_summary}
 - 🎯1年回測認證波段高手: {swing_summary}
+- 📰本週Top5權威財經新聞: {news_summary}
+- 💡消息✕籌碼共振檢驗: {res_summary}
 - 系統宏觀訊號: {'; '.join(macro_signals) if macro_signals else '中性'}
 
 [全週期主力成本與集中度矩陣]
@@ -2095,7 +2959,7 @@ class ChipReporter:
 請以機構籌碼分析師視角輸出結構化 Markdown 週報 (650~850字):
 1. **集保大戶週趨勢與融資對沖結構驗證**
 2. **多週期主力成本階梯(20/60/120/240D VWAP) ✕ 60日籌碼峰(POC)支撐壓力位階**
-3. **關鍵分點深度解析(長線囤貨大戶鎖碼底氣 ✕ 1年歷史認證波段高手之過往高低點戰績與本週最新動向)**
+3. **關鍵分點深度解析 ✕ 官股代操動態 ✕ 本週Top5權威財經新聞交叉驗證(長線囤貨大戶鎖碼底氣、八大官股護盤/提款訊號、委外代操長線鎖碼、1年歷史認證波段高手最新動向與消息面共振/背離檢驗)**
 4. **下週波段實戰操盤指引(多空態勢、關鍵破位停損價與突破加碼點)**
 """
 

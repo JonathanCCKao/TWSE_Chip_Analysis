@@ -89,6 +89,89 @@ class ChipDatabase:
                 PRIMARY KEY (stock_id, trade_date, mode)
             );
             """)
+
+            # 5. 權威財經新聞快取表 (依 stock_id + trade_date + mode 避免同日重複爬取新聞)
+            cursor.execute("""
+            CREATE TABLE IF NOT EXISTS stock_news_cache (
+                stock_id        TEXT NOT NULL,
+                trade_date      TEXT NOT NULL,
+                mode            TEXT NOT NULL,
+                news_json       TEXT NOT NULL,
+                updated_at      TEXT NOT NULL,
+                PRIMARY KEY (stock_id, trade_date, mode)
+            );
+            """)
+
+            # 6. 關鍵大戶逐日增量交易帳本 (供 brokers/ Markdown 知識庫增量續寫，避免每次重抓整年歷史)
+            cursor.execute("""
+            CREATE TABLE IF NOT EXISTS broker_daily_ledger (
+                stock_id        TEXT NOT NULL,
+                broker_name     TEXT NOT NULL,
+                trade_date      TEXT NOT NULL,
+                bhid            TEXT DEFAULT '',
+                b_code          TEXT DEFAULT '',
+                buy_shares      INTEGER DEFAULT 0,
+                sell_shares     INTEGER DEFAULT 0,
+                net_shares      INTEGER DEFAULT 0,
+                updated_at      TEXT NOT NULL,
+                PRIMARY KEY (stock_id, broker_name, trade_date)
+            );
+            """)
+
+            # 7. 關鍵大戶判讀立約與事後驗證紀錄表 (追蹤每次大戶訊號發出後 T+5/10/20 日實際股價表現以驗證邏輯準確度)
+            cursor.execute("""
+            CREATE TABLE IF NOT EXISTS broker_signal_verifications (
+                stock_id          TEXT NOT NULL,
+                broker_name       TEXT NOT NULL,
+                signal_date       TEXT NOT NULL,
+                signal_type       TEXT NOT NULL,
+                role_label        TEXT NOT NULL,
+                trigger_price     REAL DEFAULT 0.0,
+                trigger_net_5d    INTEGER DEFAULT 0,
+                trigger_net_1d    INTEGER DEFAULT 0,
+                pct_20d           REAL DEFAULT 50.0,
+                hypothesis_text   TEXT NOT NULL,
+                status            TEXT NOT NULL,
+                days_elapsed      INTEGER DEFAULT 0,
+                t5_date           TEXT DEFAULT '',
+                t5_price          REAL DEFAULT 0.0,
+                t5_ret_pct        REAL DEFAULT 0.0,
+                t10_date          TEXT DEFAULT '',
+                t10_price         REAL DEFAULT 0.0,
+                t10_ret_pct       REAL DEFAULT 0.0,
+                latest_date       TEXT DEFAULT '',
+                latest_price      REAL DEFAULT 0.0,
+                latest_ret_pct    REAL DEFAULT 0.0,
+                max_favorable_pct REAL DEFAULT 0.0,
+                max_adverse_pct   REAL DEFAULT 0.0,
+                verdict_code      TEXT DEFAULT 'PENDING',
+                verdict_label     TEXT DEFAULT '⏳ 追蹤驗證中',
+                verdict_note      TEXT DEFAULT '',
+                updated_at        TEXT NOT NULL,
+                PRIMARY KEY (stock_id, broker_name, signal_date, signal_type)
+            );
+            """)
+
+            # 8. 認證代操鎖碼席位基因庫 (附帶 14~30 天 TTL 快取機制，降低重複多週期運算)
+            cursor.execute("""
+            CREATE TABLE IF NOT EXISTS discretionary_broker_registry (
+                stock_id          TEXT NOT NULL,
+                trade_date        TEXT NOT NULL,
+                broker_name       TEXT NOT NULL,
+                bhid              TEXT DEFAULT '',
+                b_code            TEXT DEFAULT '',
+                buy_purity        REAL DEFAULT 0.0,
+                net_shares_20d    INTEGER DEFAULT 0,
+                ratio_20d         REAL DEFAULT 0.0,
+                vwap_buy_cost     REAL DEFAULT 0.0,
+                status            TEXT DEFAULT 'CERTIFIED_LOCK',
+                certified_at      TEXT NOT NULL,
+                expires_at        TEXT NOT NULL,
+                metrics_json      TEXT NOT NULL,
+                PRIMARY KEY (stock_id, broker_name)
+            );
+            """)
+
             conn.commit()
 
     def save_period_data(self, period_data: Dict[str, Any]):
@@ -218,17 +301,22 @@ class ChipDatabase:
         return status
 
     def get_known_broker_codes(self, stock_id: str) -> Dict[str, tuple]:
-        """取得該股票已知的券商 (bhid, b_code) 映射表"""
+        """取得該股票已知的券商 (bhid, b_code) 映射表 (整合區間排行與逐日帳本)"""
         query = """
         SELECT broker_name, bhid, b_code
         FROM period_broker_ranks
+        WHERE stock_id = ? AND bhid != '' AND b_code != ''
+        GROUP BY broker_name
+        UNION
+        SELECT broker_name, bhid, b_code
+        FROM broker_daily_ledger
         WHERE stock_id = ? AND bhid != '' AND b_code != ''
         GROUP BY broker_name
         """
         result = {}
         with self.get_connection() as conn:
             cursor = conn.cursor()
-            cursor.execute(query, (stock_id,))
+            cursor.execute(query, (stock_id, stock_id))
             for r in cursor.fetchall():
                 result[r["broker_name"]] = (r["bhid"], r["b_code"])
         return result
@@ -335,5 +423,347 @@ class ChipDatabase:
                 ),
             )
             conn.commit()
+
+    def get_news_cache(self, stock_id: str, trade_date: str, mode: str) -> Optional[List[Dict[str, Any]]]:
+        """讀取已快取之當日/當週前五大權威財經新聞"""
+        import json
+        query = "SELECT news_json FROM stock_news_cache WHERE stock_id = ? AND trade_date = ? AND mode = ?"
+        with self.get_connection() as conn:
+            cursor = conn.cursor()
+            cursor.execute(query, (stock_id, trade_date, mode))
+            row = cursor.fetchone()
+            if row and row["news_json"]:
+                try:
+                    return json.loads(row["news_json"])
+                except Exception:
+                    return None
+        return None
+
+    def save_news_cache(self, stock_id: str, trade_date: str, mode: str, news_list: List[Dict[str, Any]]):
+        """儲存當日/當週前五大權威財經新聞至 SQLite 快取"""
+        import json
+        from datetime import datetime
+        sql = """
+        INSERT INTO stock_news_cache (
+            stock_id, trade_date, mode, news_json, updated_at
+        ) VALUES (?, ?, ?, ?, ?)
+        ON CONFLICT(stock_id, trade_date, mode) DO UPDATE SET
+            news_json = excluded.news_json,
+            updated_at = excluded.updated_at;
+        """
+        with self.get_connection() as conn:
+            cursor = conn.cursor()
+            cursor.execute(
+                sql,
+                (
+                    stock_id,
+                    trade_date,
+                    mode,
+                    json.dumps(news_list, ensure_ascii=False),
+                    datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+                ),
+            )
+            conn.commit()
+
+    def get_broker_ledger_last_date(self, stock_id: str, broker_name: str) -> Optional[str]:
+        """查詢指定個股與分點於增量帳本中已記錄的最新交易日"""
+        query = """
+        SELECT MAX(trade_date) AS last_date
+        FROM broker_daily_ledger
+        WHERE stock_id = ? AND broker_name = ?
+        """
+        with self.get_connection() as conn:
+            cursor = conn.cursor()
+            cursor.execute(query, (stock_id, broker_name))
+            row = cursor.fetchone()
+            return row["last_date"] if row and row["last_date"] else None
+
+    def get_broker_daily_ledger_rows(
+        self, stock_id: str, broker_name: str, start_date: Optional[str] = None, end_date: Optional[str] = None
+    ) -> List[Dict[str, Any]]:
+        """讀取指定分點之逐日交易帳本"""
+        conditions = ["stock_id = ?", "broker_name = ?"]
+        params: List[Any] = [stock_id, broker_name]
+        if start_date:
+            conditions.append("trade_date >= ?")
+            params.append(start_date)
+        if end_date:
+            conditions.append("trade_date <= ?")
+            params.append(end_date)
+        where_clause = " AND ".join(conditions)
+        query = f"""
+        SELECT trade_date AS date, bhid, b_code, buy_shares AS buy, sell_shares AS sell, net_shares AS net
+        FROM broker_daily_ledger
+        WHERE {where_clause}
+        ORDER BY trade_date ASC
+        """
+        with self.get_connection() as conn:
+            cursor = conn.cursor()
+            cursor.execute(query, params)
+            return [dict(row) for row in cursor.fetchall()]
+
+    def save_broker_daily_ledger_rows(
+        self,
+        stock_id: str,
+        broker_name: str,
+        bhid: str,
+        b_code: str,
+        trades: List[Dict[str, Any]],
+    ):
+        """增量寫入分點逐日交易帳本 (ON CONFLICT 自動更新)"""
+        if not trades:
+            return
+        from datetime import datetime
+        now_str = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+        sql = """
+        INSERT INTO broker_daily_ledger (
+            stock_id, broker_name, trade_date, bhid, b_code, buy_shares, sell_shares, net_shares, updated_at
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+        ON CONFLICT(stock_id, broker_name, trade_date) DO UPDATE SET
+            bhid = CASE WHEN excluded.bhid != '' THEN excluded.bhid ELSE broker_daily_ledger.bhid END,
+            b_code = CASE WHEN excluded.b_code != '' THEN excluded.b_code ELSE broker_daily_ledger.b_code END,
+            buy_shares = excluded.buy_shares,
+            sell_shares = excluded.sell_shares,
+            net_shares = excluded.net_shares,
+            updated_at = excluded.updated_at;
+        """
+        with self.get_connection() as conn:
+            cursor = conn.cursor()
+            for t in trades:
+                dt = t.get("date") or t.get("trade_date")
+                if not dt:
+                    continue
+                b = int(t.get("buy", t.get("buy_shares", 0)))
+                s = int(t.get("sell", t.get("sell_shares", 0)))
+                n = int(t.get("net", t.get("net_shares", b - s)))
+                cursor.execute(sql, (stock_id, broker_name, dt, bhid or "", b_code or "", b, s, n, now_str))
+            conn.commit()
+
+    def get_broker_signal_verifications(
+        self, stock_id: str, broker_name: Optional[str] = None
+    ) -> List[Dict[str, Any]]:
+        """讀取分點判讀立約與事後驗證紀錄"""
+        if broker_name:
+            query = """
+            SELECT * FROM broker_signal_verifications
+            WHERE stock_id = ? AND broker_name = ?
+            ORDER BY signal_date DESC
+            """
+            params = (stock_id, broker_name)
+        else:
+            query = """
+            SELECT * FROM broker_signal_verifications
+            WHERE stock_id = ?
+            ORDER BY signal_date DESC, broker_name ASC
+            """
+            params = (stock_id,)
+        with self.get_connection() as conn:
+            cursor = conn.cursor()
+            cursor.execute(query, params)
+            return [dict(row) for row in cursor.fetchall()]
+
+    def save_broker_signal_verifications(
+        self, records: List[Dict[str, Any]], replace_broker: bool = True
+    ):
+        """批次儲存或更新分點判讀立約與事後驗證結果"""
+        if not records:
+            return
+        from datetime import datetime
+        now_str = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+        sql = """
+        INSERT INTO broker_signal_verifications (
+            stock_id, broker_name, signal_date, signal_type, role_label,
+            trigger_price, trigger_net_5d, trigger_net_1d, pct_20d,
+            hypothesis_text, status, days_elapsed,
+            t5_date, t5_price, t5_ret_pct,
+            t10_date, t10_price, t10_ret_pct,
+            latest_date, latest_price, latest_ret_pct,
+            max_favorable_pct, max_adverse_pct,
+            verdict_code, verdict_label, verdict_note, updated_at
+        ) VALUES (
+            ?, ?, ?, ?, ?,
+            ?, ?, ?, ?,
+            ?, ?, ?,
+            ?, ?, ?,
+            ?, ?, ?,
+            ?, ?, ?,
+            ?, ?,
+            ?, ?, ?, ?
+        )
+        ON CONFLICT(stock_id, broker_name, signal_date, signal_type) DO UPDATE SET
+            role_label = excluded.role_label,
+            trigger_price = excluded.trigger_price,
+            trigger_net_5d = excluded.trigger_net_5d,
+            trigger_net_1d = excluded.trigger_net_1d,
+            pct_20d = excluded.pct_20d,
+            hypothesis_text = excluded.hypothesis_text,
+            status = excluded.status,
+            days_elapsed = excluded.days_elapsed,
+            t5_date = excluded.t5_date,
+            t5_price = excluded.t5_price,
+            t5_ret_pct = excluded.t5_ret_pct,
+            t10_date = excluded.t10_date,
+            t10_price = excluded.t10_price,
+            t10_ret_pct = excluded.t10_ret_pct,
+            latest_date = excluded.latest_date,
+            latest_price = excluded.latest_price,
+            latest_ret_pct = excluded.latest_ret_pct,
+            max_favorable_pct = excluded.max_favorable_pct,
+            max_adverse_pct = excluded.max_adverse_pct,
+            verdict_code = excluded.verdict_code,
+            verdict_label = excluded.verdict_label,
+            verdict_note = excluded.verdict_note,
+            updated_at = excluded.updated_at;
+        """
+        with self.get_connection() as conn:
+            cursor = conn.cursor()
+            if replace_broker:
+                pairs = {(r["stock_id"], r["broker_name"]) for r in records}
+                for sid, bname in pairs:
+                    cursor.execute(
+                        "DELETE FROM broker_signal_verifications WHERE stock_id = ? AND broker_name = ?",
+                        (sid, bname),
+                    )
+            for r in records:
+                cursor.execute(
+                    sql,
+                    (
+                        r["stock_id"],
+                        r["broker_name"],
+                        r["signal_date"],
+                        r["signal_type"],
+                        r.get("role_label", ""),
+                        float(r.get("trigger_price", 0.0)),
+                        int(r.get("trigger_net_5d", 0)),
+                        int(r.get("trigger_net_1d", 0)),
+                        float(r.get("pct_20d", 50.0)),
+                        r.get("hypothesis_text", ""),
+                        r.get("status", "PENDING"),
+                        int(r.get("days_elapsed", 0)),
+                        r.get("t5_date", ""),
+                        float(r.get("t5_price", 0.0)),
+                        float(r.get("t5_ret_pct", 0.0)),
+                        r.get("t10_date", ""),
+                        float(r.get("t10_price", 0.0)),
+                        float(r.get("t10_ret_pct", 0.0)),
+                        r.get("latest_date", ""),
+                        float(r.get("latest_price", 0.0)),
+                        float(r.get("latest_ret_pct", 0.0)),
+                        float(r.get("max_favorable_pct", 0.0)),
+                        float(r.get("max_adverse_pct", 0.0)),
+                        r.get("verdict_code", "PENDING"),
+                        r.get("verdict_label", "⏳ 追蹤驗證中"),
+                        r.get("verdict_note", ""),
+                        now_str,
+                    ),
+                )
+            conn.commit()
+
+    def save_certified_discretionary_brokers(
+        self,
+        stock_id: str,
+        trade_date: str,
+        records: List[Dict[str, Any]],
+        ttl_days: int = 21,
+    ):
+        """
+        儲存或更新該股之認證代操鎖碼席位清單 (附帶 14~30 天 TTL 機制)
+        """
+        import json
+        from datetime import datetime, timedelta
+
+        try:
+            d_cert = datetime.strptime(trade_date, "%Y-%m-%d")
+        except Exception:
+            d_cert = datetime.now()
+        cert_str = d_cert.strftime("%Y-%m-%d")
+        exp_str = (d_cert + timedelta(days=ttl_days)).strftime("%Y-%m-%d")
+
+        sql = """
+        INSERT INTO discretionary_broker_registry (
+            stock_id, trade_date, broker_name, bhid, b_code,
+            buy_purity, net_shares_20d, ratio_20d, vwap_buy_cost,
+            status, certified_at, expires_at, metrics_json
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        ON CONFLICT(stock_id, broker_name) DO UPDATE SET
+            trade_date = excluded.trade_date,
+            bhid = excluded.bhid,
+            b_code = excluded.b_code,
+            buy_purity = excluded.buy_purity,
+            net_shares_20d = excluded.net_shares_20d,
+            ratio_20d = excluded.ratio_20d,
+            vwap_buy_cost = excluded.vwap_buy_cost,
+            status = excluded.status,
+            certified_at = excluded.certified_at,
+            expires_at = excluded.expires_at,
+            metrics_json = excluded.metrics_json;
+        """
+        with self.get_connection() as conn:
+            cursor = conn.cursor()
+            for r in records:
+                m_json = json.dumps(r, ensure_ascii=False)
+                cursor.execute(
+                    sql,
+                    (
+                        stock_id,
+                        trade_date,
+                        r["broker_name"],
+                        r.get("bhid", ""),
+                        r.get("b_code", ""),
+                        float(r.get("buy_purity", 0.0)),
+                        int(r.get("net_shares_20d", 0)),
+                        float(r.get("ratio_20d", 0.0)),
+                        float(r.get("vwap_buy_cost", 0.0)),
+                        r.get("status", "CERTIFIED_LOCK"),
+                        cert_str,
+                        exp_str,
+                        m_json,
+                    ),
+                )
+            conn.commit()
+
+    def get_certified_discretionary_brokers(
+        self,
+        stock_id: str,
+        as_of_date: Optional[str] = None,
+    ) -> List[Dict[str, Any]]:
+        """
+        讀取該股認證代操鎖碼席位清單。
+        若提供 as_of_date，自動過濾 expires_at >= as_of_date (仍在 TTL 有效期內)。
+        """
+        import json
+        sql = "SELECT * FROM discretionary_broker_registry WHERE stock_id = ?"
+        params: List[Any] = [stock_id]
+        if as_of_date:
+            sql += " AND expires_at >= ?"
+            params.append(as_of_date)
+        sql += " ORDER BY net_shares_20d DESC"
+
+        out = []
+        with self.get_connection() as conn:
+            cursor = conn.cursor()
+            cursor.execute(sql, tuple(params))
+            for row in cursor.fetchall():
+                try:
+                    data = json.loads(row["metrics_json"])
+                    data["stock_id"] = row["stock_id"]
+                    data["trade_date"] = row["trade_date"]
+                    data["broker_name"] = row["broker_name"]
+                    data["bhid"] = row["bhid"]
+                    data["b_code"] = row["b_code"]
+                    data["buy_purity"] = row["buy_purity"]
+                    data["net_shares_20d"] = row["net_shares_20d"]
+                    data["ratio_20d"] = row["ratio_20d"]
+                    data["vwap_buy_cost"] = row["vwap_buy_cost"]
+                    data["status"] = row["status"]
+                    data["certified_at"] = row["certified_at"]
+                    data["expires_at"] = row["expires_at"]
+                    out.append(data)
+                except Exception as e:
+                    logger.debug(f"解析代操席位 JSON 異常: {e}")
+                    continue
+        return out
+
+
 
 

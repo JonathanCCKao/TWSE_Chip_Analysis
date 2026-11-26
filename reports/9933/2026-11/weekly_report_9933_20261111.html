@@ -1,0 +1,2186 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>【9933】多維度籌碼主力意圖診斷看板 - 2026-11-11</title>
+    <!-- ECharts CDN for lightweight interactive candlestick & volume chart -->
+    <script src="https://cdn.jsdelivr.net/npm/echarts@5.4.3/dist/echarts.min.js"></script>
+    <style>
+        :root {
+            --bg-color: #f1f5f9;
+            --card-bg: #ffffff;
+            --text-main: #0f172a;
+            --text-muted: #64748b;
+            --primary: #2563eb;
+            --primary-light: #eff6ff;
+            --tw-red: #dc2626;
+            --tw-red-bg: #fef2f2;
+            --tw-red-border: #fecaca;
+            --tw-green: #16a34a;
+            --tw-green-bg: #f0fdf4;
+            --tw-green-border: #bbf7d0;
+            --border: #e2e8f0;
+        }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "PingFang TC", "Microsoft JhengHei", sans-serif;
+            background-color: var(--bg-color);
+            color: var(--text-main);
+            line-height: 1.6;
+            margin: 0;
+            padding: 24px 12px;
+        }
+        .container {
+            max-width: 1040px;
+            margin: 0 auto;
+        }
+        .header-card {
+            background: var(--card-bg);
+            border-radius: 12px;
+            padding: 24px 30px;
+            margin-bottom: 20px;
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.04);
+            border: 1px solid var(--border);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            flex-wrap: wrap;
+            gap: 15px;
+        }
+        .header-title h1 {
+            margin: 0;
+            font-size: 1.7rem;
+            color: #0f172a;
+        }
+        .header-subtitle {
+            color: var(--text-muted);
+            font-size: 0.95rem;
+            margin-top: 6px;
+            display: flex;
+            align-items: center;
+            flex-wrap: wrap;
+            gap: 6px;
+        }
+        .report-timestamp {
+            color: #1e40af;
+            background: #dbeafe;
+            padding: 2px 8px;
+            border-radius: 4px;
+            font-weight: 600;
+            font-size: 0.88rem;
+            display: inline-block;
+        }
+        .mode-badge {
+            padding: 2px 9px;
+            border-radius: 6px;
+            font-size: 0.85rem;
+            font-weight: 700;
+            display: inline-block;
+        }
+        .mode-daily {
+            background: #fef3c7;
+            color: #b45309;
+            border: 1px solid #fde68a;
+        }
+        .mode-weekly {
+            background: #ede9fe;
+            color: #6d28d9;
+            border: 1px solid #ddd6fe;
+        }
+        .sep {
+            color: #cbd5e1;
+            margin: 0 2px;
+        }
+        .price-badge {
+            background: #f8fafc;
+            border: 1px solid var(--border);
+            padding: 10px 18px;
+            border-radius: 10px;
+            text-align: right;
+        }
+        .price-label {
+            font-size: 0.8rem;
+            color: var(--text-muted);
+        }
+        .price-val {
+            font-size: 1.6rem;
+            font-weight: 700;
+            color: var(--tw-red);
+        }
+
+        /* 3個月 K線圖與成交量樣式 */
+        .kline-card {
+            background: var(--card-bg);
+            border-radius: 12px;
+            padding: 18px 20px 12px 20px;
+            margin-bottom: 20px;
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.04);
+            border: 1px solid var(--border);
+        }
+        .kline-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 6px;
+            flex-wrap: wrap;
+            gap: 8px;
+        }
+        .kline-title {
+            font-size: 1.05rem;
+            font-weight: 700;
+            color: #1e293b;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        .kline-tags {
+            display: inline-flex;
+            gap: 6px;
+            font-size: 0.75rem;
+            font-weight: 600;
+            margin-left: 8px;
+        }
+        .k-tag {
+            padding: 1px 6px;
+            border-radius: 4px;
+        }
+        .k-ma5 { background: #fef3c7; color: #b45309; }
+        .k-ma20 { background: #dbeafe; color: #1d4ed8; }
+        .k-ma60 { background: #f3e8ff; color: #7e22ce; }
+        .kline-note {
+            font-size: 0.8rem;
+            color: var(--text-muted);
+        }
+
+        /* 宏觀雷達卡片 (4欄 Grid) */
+        .radar-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 16px;
+            margin-bottom: 20px;
+        }
+        @media (max-width: 768px) {
+            .radar-grid {
+                grid-template-columns: 1fr;
+            }
+        }
+        .radar-card {
+            background: var(--card-bg);
+            border-radius: 12px;
+            padding: 18px 22px;
+            border: 1px solid var(--border);
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.04);
+        }
+        .radar-card-title {
+            font-size: 1.02rem;
+            font-weight: 700;
+            margin-bottom: 12px;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+        .radar-items {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 10px;
+            text-align: center;
+        }
+        .radar-item {
+            background: #f8fafc;
+            padding: 8px 10px;
+            border-radius: 8px;
+            border: 1px solid var(--border);
+        }
+        .radar-label {
+            font-size: 0.76rem;
+            color: var(--text-muted);
+            margin-bottom: 2px;
+        }
+        .radar-val {
+            font-size: 0.96rem;
+            font-weight: 700;
+        }
+        .macro-alert-box {
+            background: #fffbeb;
+            border: 1px solid #fef3c7;
+            border-left: 4px solid #f59e0b;
+            padding: 12px 16px;
+            border-radius: 8px;
+            margin-bottom: 24px;
+            font-size: 0.95rem;
+            color: #92400e;
+            font-weight: 600;
+        }
+
+        /* 總覽表格 */
+        .section-card {
+            background: var(--card-bg);
+            border-radius: 12px;
+            padding: 24px 30px;
+            margin-bottom: 24px;
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.04);
+            border: 1px solid var(--border);
+        }
+        .section-title {
+            font-size: 1.25rem;
+            font-weight: 700;
+            margin-top: 0;
+            margin-bottom: 16px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        .matrix-table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 0.95rem;
+        }
+        .matrix-table th {
+            background: #f8fafc;
+            color: #475569;
+            font-weight: 600;
+            padding: 12px 10px;
+            border-bottom: 2px solid var(--border);
+            text-align: center;
+        }
+        .matrix-table td {
+            padding: 12px 10px;
+            border-bottom: 1px solid var(--border);
+            text-align: center;
+        }
+        .matrix-table tr:hover td {
+            background-color: #f8fafc;
+        }
+        .val-red {
+            color: var(--tw-red);
+            font-weight: 600;
+        }
+        .val-green {
+            color: var(--tw-green);
+            font-weight: 600;
+        }
+
+        /* 週期 Tabs 與分點對照卡片 */
+        .tabs-header {
+            display: flex;
+            gap: 8px;
+            margin-bottom: 18px;
+            flex-wrap: wrap;
+        }
+        .tab-btn {
+            padding: 8px 16px;
+            border-radius: 8px;
+            border: 1px solid var(--border);
+            background: #f8fafc;
+            color: #475569;
+            font-size: 0.95rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.15s ease;
+        }
+        .tab-btn:hover {
+            background: #e2e8f0;
+        }
+        .tab-btn.active {
+            background: var(--primary);
+            color: #ffffff;
+            border-color: var(--primary);
+        }
+        .period-panel {
+            display: none;
+        }
+        .period-panel.active {
+            display: block;
+        }
+
+        .broker-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 20px;
+        }
+        @media (max-width: 768px) {
+            .broker-grid {
+                grid-template-columns: 1fr;
+            }
+        }
+        .side-card {
+            border-radius: 10px;
+            padding: 18px;
+            border: 1px solid var(--border);
+        }
+        .side-card.buy {
+            background: var(--tw-red-bg);
+            border-color: var(--tw-red-border);
+        }
+        .side-card.sell {
+            background: var(--tw-green-bg);
+            border-color: var(--tw-green-border);
+        }
+        .side-header {
+            font-weight: 700;
+            font-size: 1.05rem;
+            margin-bottom: 12px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        .side-header.buy {
+            color: var(--tw-red);
+        }
+        .side-header.sell {
+            color: var(--tw-green);
+        }
+        .broker-table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 0.92rem;
+            background: #ffffff;
+            border-radius: 8px;
+            overflow: hidden;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.03);
+        }
+        .broker-table th {
+            background: #f8fafc;
+            padding: 8px 10px;
+            font-weight: 600;
+            font-size: 0.85rem;
+            color: #64748b;
+            border-bottom: 1px solid var(--border);
+        }
+        .broker-table td {
+            padding: 9px 10px;
+            border-bottom: 1px solid #f1f5f9;
+        }
+        .broker-table tr:last-child td {
+            border-bottom: none;
+        }
+        .badge {
+            display: inline-block;
+            font-size: 0.72rem;
+            padding: 2px 6px;
+            border-radius: 4px;
+            font-weight: 600;
+            margin-left: 4px;
+            vertical-align: middle;
+        }
+        .badge-daytrader {
+            background: #fee2e2;
+            color: #b91c1c;
+            border: 1px solid #fca5a5;
+        }
+        .badge-fake-foreign {
+            background: #fdf4ff;
+            color: #a21caf;
+            border: 1px solid #f0abfc;
+        }
+        .badge-foreign {
+            background: #e0f2fe;
+            color: #0369a1;
+            border: 1px solid #bae6fd;
+        }
+        .badge-gov {
+            background: #fef3c7;
+            color: #92400e;
+            border: 1px solid #fde68a;
+        }
+        .badge-hoarder {
+            background: #eff6ff;
+            color: #1d4ed8;
+            border: 1px solid #93c5fd;
+            font-weight: 700;
+        }
+        .badge-swing-buy {
+            background: #faf5ff;
+            color: #7e22ce;
+            border: 1px solid #d8b4fe;
+            font-weight: 700;
+        }
+        .badge-swing-sell {
+            background: #fff7ed;
+            color: #c2410c;
+            border: 1px solid #fed7aa;
+            font-weight: 700;
+        }
+        .badge-swing-warn {
+            background: #fef2f2;
+            color: #b91c1c;
+            border: 1px solid #fecaca;
+            font-weight: 700;
+        }
+
+        /* 分點雙欄對照表格容器 */
+        .table-container {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 16px;
+        }
+        @media (max-width: 768px) {
+            .table-container {
+                grid-template-columns: 1fr;
+            }
+        }
+        .table-box {
+            background: #ffffff;
+            border: 1px solid var(--border);
+            border-radius: 10px;
+            overflow: hidden;
+        }
+        .table-header-title {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 10px 14px;
+            font-size: 0.92rem;
+            font-weight: 700;
+            border-bottom: 1px solid var(--border);
+        }
+        .buyer-title {
+            background: #fef2f2;
+            color: #b91c1c;
+        }
+        .seller-title {
+            background: #f0fdf4;
+            color: #15803d;
+        }
+
+        /* 關鍵核心主力分點動態雷達 (Smart Brokers Grid) */
+        .smart-brokers-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 16px;
+        }
+        @media (max-width: 768px) {
+            .smart-brokers-grid {
+                grid-template-columns: 1fr;
+            }
+        }
+        .sb-column {
+            background: #f8fafc;
+            border-radius: 10px;
+            padding: 16px;
+            border: 1px solid var(--border);
+        }
+        .sb-col-title {
+            font-size: 1.02rem;
+            font-weight: 700;
+            margin-bottom: 12px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            border-bottom: 1px solid var(--border);
+            padding-bottom: 8px;
+        }
+        .sb-list {
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+        .sb-item {
+            background: #ffffff;
+            padding: 10px 14px;
+            border-radius: 8px;
+            border: 1px solid #e2e8f0;
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.02);
+        }
+        .sb-item-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        .sb-item-name {
+            font-weight: 700;
+            font-size: 0.95rem;
+            color: #1e293b;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+        .sb-item-desc {
+            font-size: 0.84rem;
+            color: #64748b;
+        }
+        .sb-empty {
+            text-align: center;
+            color: #94a3b8;
+            font-size: 0.88rem;
+            padding: 20px 10px;
+        }
+
+        /* ==================== 視覺語意高亮元件 (UI Enhancement) ==================== */
+        .hero-decision,
+        .hero-decision-card {
+            background: linear-gradient(135deg, #f8fafc 0%, #edf2f7 100%);
+            border: 1px solid #cbd5e1;
+            border-left: 6px solid var(--primary);
+            border-radius: 12px;
+            padding: 18px 22px;
+            margin-bottom: 24px;
+            box-shadow: 0 3px 12px rgba(0, 0, 0, 0.05);
+        }
+        .hero-decision.banner-bull {
+            background: linear-gradient(135deg, #fff5f5 0%, #fee2e2 100%);
+            border-color: #fca5a5;
+            border-left: 6px solid #dc2626;
+        }
+        .hero-decision.banner-caution {
+            background: linear-gradient(135deg, #fffbeb 0%, #fef3c7 100%);
+            border-color: #fcd34d;
+            border-left: 6px solid #d97706;
+        }
+        .hero-title,
+        .hero-decision-title {
+            font-size: 1.08rem;
+            font-weight: 800;
+            color: #0f172a;
+            margin-bottom: 8px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+        .hero-desc {
+            font-size: 0.94rem;
+            color: #334155;
+            line-height: 1.65;
+        }
+        .hero-decision-grid {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 12px;
+            text-align: center;
+        }
+        @media (max-width: 768px) {
+            .hero-decision-grid {
+                grid-template-columns: 1fr 1fr;
+            }
+        }
+        .hero-decision-item {
+            background: #ffffff;
+            padding: 10px 12px;
+            border-radius: 8px;
+            border: 1px solid #e2e8f0;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.03);
+        }
+        .hero-decision-lbl {
+            font-size: 0.78rem;
+            color: #64748b;
+            font-weight: 600;
+            margin-bottom: 4px;
+        }
+        .hero-decision-val {
+            font-size: 1.05rem;
+            font-weight: 800;
+        }
+
+        /* 文字內容與語意高亮標籤 */
+        .analysis-content {
+            font-size: 1.02rem;
+            color: #334155;
+            line-height: 1.85;
+        }
+        .analysis-content h2 {
+            color: #0f172a;
+            font-size: 1.35rem;
+            margin-top: 32px;
+            margin-bottom: 14px;
+            border-left: 4px solid var(--primary);
+            padding-left: 12px;
+        }
+        .analysis-content h3 {
+            color: #1e293b;
+            font-size: 1.15rem;
+            margin-top: 24px;
+            margin-bottom: 12px;
+        }
+        .analysis-content ul {
+            padding-left: 22px;
+        }
+        .analysis-content li {
+            margin-bottom: 10px;
+        }
+
+        /* 語意高亮膠囊 */
+        .broker-pill {
+            background: #e0f2fe;
+            color: #0369a1;
+            padding: 2px 7px;
+            border-radius: 6px;
+            font-weight: 600;
+            border: 1px solid #bae6fd;
+            display: inline-block;
+            margin: 0 2px;
+            font-size: 0.95em;
+        }
+        .price-pill {
+            background: #fef3c7;
+            color: #92400e;
+            padding: 1px 7px;
+            border-radius: 6px;
+            font-weight: 700;
+            border: 1px solid #fde68a;
+            display: inline-block;
+            margin: 0 2px;
+            font-family: monospace, sans-serif;
+            font-size: 0.96em;
+        }
+        .bullish-tag {
+            color: #dc2626;
+            font-weight: 700;
+            background: #fef2f2;
+            padding: 1px 5px;
+            border-radius: 4px;
+        }
+        .bearish-tag {
+            color: #16a34a;
+            font-weight: 700;
+            background: #f0fdf4;
+            padding: 1px 5px;
+            border-radius: 4px;
+        }
+        .val-pos {
+            color: #dc2626;
+            font-weight: 700;
+        }
+        .val-neg {
+            color: #16a34a;
+            font-weight: 700;
+        }
+        .alert-pill {
+            background: #fee2e2;
+            color: #b91c1c;
+            padding: 2px 6px;
+            border-radius: 4px;
+            font-weight: 700;
+            border: 1px solid #fca5a5;
+        }
+
+        /* 權威財經新聞與催化劑雷達 (Top 5) */
+        .news-resonance-banner {
+            padding: 12px 16px;
+            border-radius: 8px;
+            margin-bottom: 16px;
+            font-size: 0.92rem;
+            line-height: 1.5;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        .news-res-warn {
+            background: #fffbeb;
+            border: 1px solid #fde68a;
+            border-left: 4px solid #d97706;
+            color: #92400e;
+        }
+        .news-res-bull {
+            background: #fef2f2;
+            border: 1px solid #fecaca;
+            border-left: 4px solid #dc2626;
+            color: #991b1b;
+        }
+        .news-res-bear {
+            background: #f0fdf4;
+            border: 1px solid #bbf7d0;
+            border-left: 4px solid #16a34a;
+            color: #166534;
+        }
+        .news-res-neutral {
+            background: #f8fafc;
+            border: 1px solid #e2e8f0;
+            border-left: 4px solid #3b82f6;
+            color: #334155;
+        }
+        .news-list {
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+        .news-card {
+            display: flex;
+            align-items: flex-start;
+            justify-content: space-between;
+            gap: 14px;
+            padding: 12px 16px;
+            border-radius: 10px;
+            background: #f8fafc;
+            border: 1px solid #e2e8f0;
+            transition: all 0.15s ease;
+        }
+        .news-card:hover {
+            background: #ffffff;
+            border-color: #cbd5e1;
+            box-shadow: 0 2px 8px rgba(15, 23, 42, 0.05);
+        }
+        .news-left {
+            display: flex;
+            align-items: flex-start;
+            gap: 12px;
+            flex: 1;
+        }
+        .news-rank {
+            min-width: 28px;
+            height: 28px;
+            border-radius: 7px;
+            background: #1e293b;
+            color: #ffffff;
+            font-weight: 700;
+            font-size: 0.85rem;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin-top: 2px;
+        }
+        .news-rank.top1 {
+            background: #dc2626;
+        }
+        .news-rank.top2 {
+            background: #2563eb;
+        }
+        .news-body {
+            display: flex;
+            flex-direction: column;
+            gap: 5px;
+            flex: 1;
+        }
+        .news-badges {
+            display: flex;
+            flex-wrap: wrap;
+            align-items: center;
+            gap: 6px;
+        }
+        .news-badge {
+            font-size: 0.75rem;
+            font-weight: 700;
+            padding: 2px 8px;
+            border-radius: 5px;
+            display: inline-block;
+        }
+        .nb-stock {
+            background: #eff6ff;
+            color: #1d4ed8;
+            border: 1px solid #bfdbfe;
+        }
+        .nb-macro {
+            background: #f1f5f9;
+            color: #475569;
+            border: 1px solid #cbd5e1;
+        }
+        .nb-bull {
+            background: #fef2f2;
+            color: #dc2626;
+            border: 1px solid #fecaca;
+        }
+        .nb-bear {
+            background: #f0fdf4;
+            color: #15803d;
+            border: 1px solid #bbf7d0;
+        }
+        .nb-official {
+            background: #faf5ff;
+            color: #7e22ce;
+            border: 1px solid #e9d5ff;
+        }
+        .nb-neutral {
+            background: #f8fafc;
+            color: #475569;
+            border: 1px solid #e2e8f0;
+        }
+        .news-source-tag {
+            font-size: 0.76rem;
+            font-weight: 600;
+            color: #0369a1;
+            background: #e0f2fe;
+            padding: 2px 8px;
+            border-radius: 5px;
+        }
+        .news-title-link {
+            font-size: 0.98rem;
+            font-weight: 600;
+            color: #0f172a;
+            text-decoration: none;
+            line-height: 1.45;
+        }
+        .news-title-link:hover {
+            color: #2563eb;
+            text-decoration: underline;
+        }
+        .news-time {
+            font-size: 0.8rem;
+            color: #64748b;
+            white-space: nowrap;
+            font-family: monospace, sans-serif;
+            margin-top: 4px;
+        }
+
+        .footer {
+            text-align: center;
+            font-size: 0.85rem;
+            color: var(--text-muted);
+            margin-top: 30px;
+            padding-bottom: 20px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <!-- 頂部股票基本資訊 -->
+        <div class="header-card">
+            <div class="header-title">
+                <h1>【9933 中鼎】多維度籌碼主力意圖戰略週報 (Weekly)</h1>
+                <div class="header-subtitle">
+                    <span class="mode-badge mode-weekly">🌌 週末戰略週報</span>
+                    <span class="report-timestamp">🕒 產出時間：2026-11-12 16:00</span>
+                    <span class="sep">｜</span>
+                    <span>資料基準日：2026-11-11</span>
+                    <span class="sep">｜</span>
+                    <span>產業：Industrials</span>
+                    <span class="sep">｜</span>
+                    <span>分析引擎：Gemini (gemini-2.5-flash)</span>
+                </div>
+            </div>
+            <div class="price-badge">
+                <div class="price-label">當日收盤價</div>
+                <div class="price-val">51.5 元</div>
+            </div>
+        </div>
+
+        <!-- 頂部 3 個月 K 線圖與均線成交量 -->
+        
+        <div class="kline-card">
+            <div class="kline-header">
+                <div class="kline-title">
+                    <span>📈</span>
+                    <span>【9933 中鼎】近 3 個月技術 K 線與均線成交量</span>
+                    <span class="kline-tags">
+                        <span class="k-tag k-ma5">● MA5</span>
+                        <span class="k-tag k-ma20">● MA20(月線)</span>
+                        <span class="k-tag k-ma60">● MA60(季線)</span>
+                    </span>
+                </div>
+                <div class="kline-note">
+                    紅漲 綠跌 ｜ 滾輪縮放 ｜ 移動游標查看逐日明細
+                </div>
+            </div>
+            <div id="kline_chart_9933_中鼎" style="width: 100%; height: 320px;"></div>
+        </div>
+
+        <script>
+        (function() {
+            var chartDom = document.getElementById('kline_chart_9933_中鼎');
+            if (!chartDom || typeof echarts === 'undefined') return;
+            var myChart = echarts.init(chartDom);
+
+            var dates = ["2026-08-11", "2026-08-12", "2026-08-13", "2026-08-14", "2026-08-17", "2026-08-18", "2026-08-19", "2026-08-20", "2026-08-21", "2026-08-24", "2026-08-25", "2026-08-26", "2026-08-27", "2026-08-28", "2026-08-31", "2026-09-01", "2026-09-02", "2026-09-03", "2026-09-04", "2026-09-07", "2026-09-08", "2026-09-09", "2026-09-10", "2026-09-11", "2026-09-14", "2026-09-15", "2026-09-16", "2026-09-17", "2026-09-18", "2026-09-21", "2026-09-22", "2026-09-23", "2026-09-24", "2026-09-29", "2026-09-30", "2026-10-01", "2026-10-02", "2026-10-05", "2026-10-06", "2026-10-07", "2026-10-08", "2026-10-12", "2026-10-13", "2026-10-14", "2026-10-15", "2026-10-16", "2026-10-19", "2026-10-20", "2026-10-21", "2026-10-22", "2026-10-23", "2026-10-27", "2026-10-28", "2026-10-29", "2026-10-30", "2026-11-02", "2026-11-03", "2026-11-04", "2026-11-05", "2026-11-06", "2026-11-09", "2026-11-10", "2026-11-11"];
+            var candles = [[36.42, 37.19, 36.42, 37.34], [39.07, 40.42, 39.07, 40.9], [40.37, 40.61, 40.13, 41.19], [40.56, 41.28, 39.99, 41.48], [41.09, 40.66, 40.42, 41.24], [40.66, 40.23, 39.89, 40.66], [39.94, 39.65, 39.6, 40.08], [39.84, 40.9, 39.84, 40.9], [40.9, 40.56, 40.18, 41.09], [40.42, 39.99, 39.89, 40.71], [39.94, 40.61, 39.79, 40.71], [40.71, 40.42, 40.37, 40.76], [40.37, 40.03, 40.03, 40.56], [39.99, 39.07, 38.88, 40.18], [39.46, 38.98, 38.54, 39.46], [38.78, 39.46, 38.69, 39.65], [39.02, 39.22, 38.98, 39.46], [39.12, 39.26, 38.73, 39.65], [39.26, 38.88, 38.64, 39.36], [39.02, 38.78, 38.4, 39.22], [39.0, 39.1, 38.65, 39.35], [38.85, 40.15, 38.8, 40.15], [39.95, 40.35, 39.55, 40.4], [39.95, 41.7, 39.95, 41.8], [41.65, 41.2, 40.8, 41.95], [41.6, 41.9, 40.9, 42.4], [41.8, 42.75, 41.5, 43.0], [43.0, 42.4, 42.1, 43.05], [42.85, 42.3, 41.8, 42.85], [42.3, 41.35, 41.3, 42.5], [41.35, 40.9, 40.85, 41.5], [41.05, 41.1, 40.95, 41.35], [41.05, 41.0, 40.6, 41.75], [40.95, 40.35, 40.35, 41.3], [40.5, 40.7, 40.35, 40.75], [40.6, 41.65, 40.6, 42.0], [41.8, 45.8, 41.8, 45.8], [48.75, 46.35, 45.9, 48.75], [46.4, 45.25, 44.55, 46.4], [44.7, 43.55, 43.5, 44.95], [43.25, 43.1, 42.75, 43.85], [43.0, 42.7, 42.7, 43.75], [42.55, 42.3, 41.9, 42.65], [42.6, 42.55, 41.95, 42.6], [42.0, 42.4, 42.0, 43.65], [42.5, 43.2, 42.5, 43.45], [43.2, 42.75, 42.65, 43.7], [42.3, 42.95, 42.3, 45.15], [43.3, 43.7, 43.0, 43.75], [44.1, 44.65, 43.9, 45.35], [44.65, 44.65, 44.65, 44.65], [44.3, 46.25, 44.0, 46.4], [46.3, 47.4, 46.05, 47.45], [47.6, 47.9, 47.25, 48.5], [47.05, 45.3, 44.85, 47.5], [45.7, 46.15, 45.05, 46.85], [45.7, 46.3, 45.6, 47.15], [47.5, 47.95, 46.8, 48.3], [47.65, 45.4, 45.2, 48.3], [42.0, 44.4, 41.9, 45.2], [44.1, 45.9, 44.1, 46.4], [46.5, 47.9, 45.8, 48.0], [50.2, 51.5, 50.2, 52.6]];
+            var volumes = [1595, 9874, 3959, 4421, 1759, 1852, 1481, 2134, 1490, 1356, 1665, 1219, 1419, 2922, 2924, 1991, 1344, 2032, 2478, 2656, 3207, 1700, 1590, 4235, 2031, 3380, 4213, 2230, 3150, 2085, 1210, 927, 1267, 1723, 1365, 2995, 20964, 22930, 7591, 6889, 4338, 3890, 3455, 2949, 4770, 4815, 3221, 7921, 4025, 8153, 0, 8585, 6846, 6385, 5452, 5945, 6236, 11060, 5779, 7900, 4500, 7734, 42749];
+            var ma5 = [36.27, 37.3, 38.27, 39.26, 40.03, 40.64, 40.49, 40.54, 40.4, 40.26, 40.34, 40.5, 40.32, 40.02, 39.82, 39.59, 39.35, 39.2, 39.16, 39.12, 39.05, 39.24, 39.45, 40.02, 40.5, 41.06, 41.58, 41.99, 42.11, 42.14, 41.94, 41.61, 41.33, 40.94, 40.81, 40.96, 41.9, 42.97, 43.95, 44.52, 44.81, 44.19, 43.38, 42.84, 42.61, 42.63, 42.64, 42.77, 43.0, 43.45, 43.74, 44.44, 45.33, 46.17, 46.3, 46.6, 46.61, 46.72, 46.22, 46.04, 45.99, 46.31, 47.02];
+            var ma20 = [36.93, 36.99, 37.06, 37.24, 37.38, 37.48, 37.53, 37.63, 37.73, 37.81, 37.96, 38.24, 38.52, 38.78, 38.99, 39.21, 39.41, 39.58, 39.71, 39.81, 39.91, 39.89, 39.88, 39.9, 39.93, 40.01, 40.17, 40.24, 40.33, 40.4, 40.41, 40.44, 40.49, 40.56, 40.64, 40.75, 41.08, 41.44, 41.75, 41.99, 42.19, 42.32, 42.42, 42.46, 42.52, 42.58, 42.58, 42.61, 42.68, 42.85, 43.04, 43.29, 43.61, 43.99, 44.22, 44.45, 44.47, 44.55, 44.56, 44.6, 44.74, 45.0, 45.46];
+            var ma60 = [38.63, 38.71, 38.79, 38.86, 38.9, 38.94, 38.97, 39.0, 39.04, 39.08, 39.12, 39.16, 39.2, 39.17, 39.14, 39.1, 39.08, 39.08, 39.08, 39.06, 39.06, 39.04, 39.04, 39.04, 39.04, 39.04, 39.06, 39.08, 39.08, 39.1, 39.11, 39.12, 39.15, 39.17, 39.19, 39.22, 39.31, 39.43, 39.53, 39.6, 39.68, 39.74, 39.79, 39.87, 39.94, 40.02, 40.09, 40.16, 40.25, 40.35, 40.47, 40.66, 40.87, 41.11, 41.28, 41.47, 41.65, 41.86, 42.01, 42.13, 42.28, 42.4, 42.59];
+
+            var volData = volumes.map(function(val, idx) {
+                var c = candles[idx];
+                var isUp = c ? (c[1] >= c[0]) : true;
+                return {
+                    value: val,
+                    itemStyle: {
+                        color: isUp ? '#ef4444' : '#22c55e',
+                        borderColor: isUp ? '#ef4444' : '#22c55e'
+                    }
+                };
+            });
+
+            var option = {
+                animation: false,
+                tooltip: {
+                    trigger: 'axis',
+                    axisPointer: {
+                        type: 'cross',
+                        link: [{ xAxisIndex: 'all' }],
+                        label: { backgroundColor: '#334155' }
+                    },
+                    backgroundColor: 'rgba(15, 23, 42, 0.92)',
+                    borderColor: '#334155',
+                    textStyle: { color: '#ffffff', fontSize: 12 },
+                    formatter: function(params) {
+                        if (!params || !params.length) return '';
+                        var idx = params[0].dataIndex;
+                        var d = dates[idx];
+                        var c = candles[idx];
+                        if (!c) return '';
+                        var o = c[0], cl = c[1], l = c[2], h = c[3];
+                        var v = volumes[idx] || 0;
+                        var prevCl = (idx > 0 && candles[idx - 1]) ? candles[idx - 1][1] : o;
+                        var pct = prevCl > 0 ? ((cl - prevCl) / prevCl * 100).toFixed(2) : '0.00';
+                        var isUp = cl >= prevCl;
+                        var chgColor = isUp ? '#f87171' : '#4ade80';
+                        var sign = isUp ? '+' : '';
+
+                        var res = '<div style="font-weight:700; margin-bottom:4px; border-bottom:1px solid #475569; padding-bottom:3px;">' + d + '</div>';
+                        res += '開盤: <b>' + o + '</b> ｜ 最高: <b>' + h + '</b><br/>';
+                        res += '收盤: <b style="color:' + chgColor + '">' + cl + ' (' + sign + pct + '%)</b> ｜ 最低: <b>' + l + '</b><br/>';
+                        res += '成交量: <b>' + v.toLocaleString() + ' 張</b><br/>';
+                        
+                        var v5 = (ma5[idx] !== null && ma5[idx] !== undefined) ? ma5[idx] : '-';
+                        var v20 = (ma20[idx] !== null && ma20[idx] !== undefined) ? ma20[idx] : '-';
+                        var v60 = (ma60[idx] !== null && ma60[idx] !== undefined) ? ma60[idx] : '-';
+                        res += '<span style="color:#f59e0b">MA5: ' + v5 + '</span> ｜ <span style="color:#60a5fa">MA20: ' + v20 + '</span> ｜ <span style="color:#c084fc">MA60: ' + v60 + '</span>';
+                        return res;
+                    }
+                },
+                legend: {
+                    data: ['日K', 'MA5', 'MA20', 'MA60'],
+                    top: 0,
+                    right: 15,
+                    textStyle: { color: '#64748b', fontSize: 11 },
+                    itemWidth: 14,
+                    itemHeight: 8
+                },
+                grid: [
+                    { left: 52, right: 20, top: 26, height: '56%' },
+                    { left: 52, right: 20, top: '72%', height: '20%' }
+                ],
+                xAxis: [
+                    {
+                        type: 'category',
+                        data: dates,
+                        boundaryGap: true,
+                        axisLine: { lineStyle: { color: '#cbd5e1' } },
+                        splitLine: { show: false },
+                        axisLabel: { show: false }
+                    },
+                    {
+                        type: 'category',
+                        gridIndex: 1,
+                        data: dates,
+                        boundaryGap: true,
+                        axisLine: { lineStyle: { color: '#cbd5e1' } },
+                        axisTick: { show: false },
+                        splitLine: { show: false },
+                        axisLabel: {
+                            color: '#64748b',
+                            fontSize: 10,
+                            formatter: function(val) { return val.substring(5); }
+                        }
+                    }
+                ],
+                yAxis: [
+                    {
+                        scale: true,
+                        splitArea: { show: true, areaStyle: { color: ['rgba(248,250,252,0.5)', 'rgba(255,255,255,0.2)'] } },
+                        splitLine: { lineStyle: { color: '#f1f5f9' } },
+                        axisLabel: { color: '#64748b', fontSize: 11 }
+                    },
+                    {
+                        gridIndex: 1,
+                        scale: true,
+                        splitNumber: 2,
+                        splitLine: { show: false },
+                        axisLabel: {
+                            color: '#64748b',
+                            fontSize: 9,
+                            formatter: function(val) {
+                                return val >= 1000 ? (val / 1000).toFixed(0) + 'k' : val;
+                            }
+                        }
+                    }
+                ],
+                dataZoom: [
+                    {
+                        type: 'inside',
+                        xAxisIndex: [0, 1],
+                        start: 0,
+                        end: 100
+                    }
+                ],
+                series: [
+                    {
+                        name: '日K',
+                        type: 'candlestick',
+                        data: candles,
+                        itemStyle: {
+                            color: '#ef4444',
+                            color0: '#22c55e',
+                            borderColor: '#ef4444',
+                            borderColor0: '#22c55e'
+                        }
+                    },
+                    {
+                        name: 'MA5',
+                        type: 'line',
+                        data: ma5,
+                        smooth: true,
+                        showSymbol: false,
+                        lineStyle: { width: 1.2, color: '#f59e0b' }
+                    },
+                    {
+                        name: 'MA20',
+                        type: 'line',
+                        data: ma20,
+                        smooth: true,
+                        showSymbol: false,
+                        lineStyle: { width: 1.2, color: '#2563eb' }
+                    },
+                    {
+                        name: 'MA60',
+                        type: 'line',
+                        data: ma60,
+                        smooth: true,
+                        showSymbol: false,
+                        lineStyle: { width: 1.2, color: '#9333ea' }
+                    },
+                    {
+                        name: '成交量',
+                        type: 'bar',
+                        xAxisIndex: 1,
+                        yAxisIndex: 1,
+                        data: volData
+                    }
+                ]
+            };
+
+            myChart.setOption(option);
+            window.addEventListener('resize', function() {
+                myChart.resize();
+            });
+        })();
+        </script>
+        
+
+        <!-- 0. 宏觀籌碼看板 (日報 2欄 / 週報 4欄) -->
+        <div class="radar-grid">
+            
+            <div class="radar-card">
+                <div class="radar-card-title">🏛️ 三大法人單日買賣超</div>
+                <div class="radar-items">
+                    <div class="radar-item">
+                        <div class="radar-label">外資</div>
+                        <div class="radar-val val-red">+0 張</div>
+                    </div>
+                    <div class="radar-item">
+                        <div class="radar-label">投信</div>
+                        <div class="radar-val val-red">+0 張</div>
+                    </div>
+                    <div class="radar-item">
+                        <div class="radar-label">自營商</div>
+                        <div class="radar-val val-red">+0 張</div>
+                    </div>
+                    <div class="radar-item">
+                        <div class="radar-label">法人合計</div>
+                        <div class="radar-val val-red">+0 張</div>
+                    </div>
+                    <div class="radar-item">
+                        <div class="radar-label">外資持股比</div>
+                        <div class="radar-val">0.00%</div>
+                    </div>
+                    <div class="radar-item">
+                        <div class="radar-label">法人總持股</div>
+                        <div class="radar-val">0.00%</div>
+                    </div>
+                </div>
+            </div>
+        
+
+            <div class="radar-card">
+                <div class="radar-card-title">📈 融資融券散戶動態</div>
+                <div class="radar-items">
+                    <div class="radar-item">
+                        <div class="radar-label">融資餘額</div>
+                        <div class="radar-val">10,960 張</div>
+                    </div>
+                    <div class="radar-item">
+                        <div class="radar-label">融資增減</div>
+                        <div class="radar-val val-red">+3,410 張</div>
+                    </div>
+                    <div class="radar-item">
+                        <div class="radar-label">融券餘額</div>
+                        <div class="radar-val">6,434 張</div>
+                    </div>
+                    <div class="radar-item">
+                        <div class="radar-label">融券增減</div>
+                        <div class="radar-val val-red">+6,102 張</div>
+                    </div>
+                    <div class="radar-item">
+                        <div class="radar-label">券資比</div>
+                        <div class="radar-val">58.70%</div>
+                    </div>
+                    <div class="radar-item">
+                        <div class="radar-label">籌碼沉澱訊號</div>
+                        <div class="radar-val" style="font-size:0.85rem;">⚠️散戶追價</div>
+                    </div>
+                </div>
+            </div>
+        
+
+            <div class="radar-card">
+                <div class="radar-card-title">⚡ 技術面均線與量能共振</div>
+                <div class="radar-items">
+                    <div class="radar-item">
+                        <div class="radar-label">均線型態</div>
+                        <div class="radar-val val-red" style="font-weight:700;">👑 三線多頭排列</div>
+                    </div>
+                    <div class="radar-item">
+                        <div class="radar-label">成交放量比 (vs 5MA量)</div>
+                        <div class="radar-val val-red">3.11 倍 (🔥出量攻擊)</div>
+                    </div>
+                    <div class="radar-item">
+                        <div class="radar-label">5MA / 20MA (月線)</div>
+                        <div class="radar-val">47.02 / 45.46 元</div>
+                    </div>
+                    <div class="radar-item">
+                        <div class="radar-label">60MA (季線生命線)</div>
+                        <div class="radar-val">42.59 元</div>
+                    </div>
+                    <div class="radar-item">
+                        <div class="radar-label">20MA 月線斜率</div>
+                        <div class="radar-val val-red">↗️ 翻揚助漲</div>
+                    </div>
+                    <div class="radar-item">
+                        <div class="radar-label">當日成交張數</div>
+                        <div class="radar-val">42,749 張</div>
+                    </div>
+                </div>
+            </div>
+        
+
+            <div class="radar-card">
+                <div class="radar-card-title">📊 集保大戶週持股動態 (TDCC)</div>
+                <div class="radar-items">
+                    <div class="radar-item">
+                        <div class="radar-label">最新集中度</div>
+                        <div class="radar-val">64.77%</div>
+                    </div>
+                    <div class="radar-item">
+                        <div class="radar-label">週增減變化</div>
+                        <div class="radar-val val-red">+0.40%</div>
+                    </div>
+                    <div class="radar-item">
+                        <div class="radar-label">大戶持股比</div>
+                        <div class="radar-val">42.41%</div>
+                    </div>
+                    <div class="radar-item">
+                        <div class="radar-label">外資持股比</div>
+                        <div class="radar-val">22.36%</div>
+                    </div>
+                    <div class="radar-item">
+                        <div class="radar-label">董監持股比</div>
+                        <div class="radar-val">7.37%</div>
+                    </div>
+                    <div class="radar-item">
+                        <div class="radar-label">集保週基準日</div>
+                        <div class="radar-val" style="font-size:0.82rem;">2026/11/06</div>
+                    </div>
+                </div>
+            </div>
+        
+
+            <div class="radar-card">
+                <div class="radar-card-title">🧱 60日籌碼密集峰 (Volume Profile) & 估值</div>
+                <div class="radar-items">
+                    <div class="radar-item">
+                        <div class="radar-label">密集換手區 (POC)</div>
+                        <div class="radar-val" style="color:var(--primary);">45.5~46.9 元</div>
+                    </div>
+                    <div class="radar-item">
+                        <div class="radar-label">密集峰成交佔比</div>
+                        <div class="radar-val">23.2%</div>
+                    </div>
+                    <div class="radar-item">
+                        <div class="radar-label">本益比 (PE)</div>
+                        <div class="radar-val">10.1 倍</div>
+                    </div>
+                    <div class="radar-item">
+                        <div class="radar-label">股價淨值比 (PB)</div>
+                        <div class="radar-val">2.24</div>
+                    </div>
+                    <div class="radar-item">
+                        <div class="radar-label">殖利率 (Yield)</div>
+                        <div class="radar-val">1.66%</div>
+                    </div>
+                    <div class="radar-item">
+                        <div class="radar-label">箱型支撐位階</div>
+                        <div class="radar-val" style="font-size:0.85rem;">🧱站穩支撐</div>
+                    </div>
+                </div>
+            </div>
+        
+        </div>
+
+        <div class="macro-alert-box">🎯 【1年認證賣頂高手出貨】過去1年 9 度精準賣頂之「台新-西松」(勝率 64%、正價差 +5.3%)，近5日再度連賣 63 張 (今日 -18 張)，嚴防高檔見頂賣壓！<br>🎯 【1年認證賣頂高手出貨】過去1年 9 度精準賣頂之「群益金鼎」(勝率 67%、正價差 +1.6%)，近5日再度連賣 620 張 (今日 -378 張)，嚴防高檔見頂賣壓！<br>🎯 【1年認證抄底高手進場】歷史低檔抄底高手「中國信託」(正價差 +5.5%)，近5日積極買超 +615 張 (今日 -14 張)，留意波段底部支撐！<br>📊 【集保大戶增持】最新一週籌碼集中度提升 +0.40% (大戶籌碼佔 42.41%)<br>🧱 【突破 60日籌碼密集峰】現價站穩密集換手箱型區 (45.5~46.9元，累積量佔 23.24%)，轉化為強力防守支撐帶<br>⚡ 【多頭排列放量攻擊】三線多頭排列且出量 3.11 倍，多方動能積極。<br>🔍 【大戶訊號驗證校正】「群益金鼎」⚠️ 左側早賣觀察 (前次 11-06@44.4元 被軋 +16.0%)，顯示其習慣於主升段左側分批逢高調節，未跌破 5MA 前宜視為高檔換手預警而非立即崩跌訊號。</div>
+
+        <!-- 1. 多週期量化指標矩陣看板 -->
+        <div class="section-card">
+            <div class="section-title">📊 多週期主力加權成本階梯 (VWAP) 與集中度矩陣 (全維度)</div>
+            <table class="matrix-table">
+                <thead>
+                    <tr>
+                        <th>週期</th>
+                        <th>主力買超均價 (VWAP)</th>
+                        <th>現價乖離率</th>
+                        <th>前 5 大買方佔比</th>
+                        <th>前 5 大賣方佔比</th>
+                        <th>淨集中度 (買-賣)</th>
+                        <th>狀態備註</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    
+            <tr>
+                <td><strong>5 日</strong></td>
+                <td>49.68 元</td>
+                <td class="val-red">+3.66%</td>
+                <td>23.53%</td>
+                <td>7.72%</td>
+                <td class="val-red">+15.81%</td>
+                <td></td>
+            </tr>
+            
+            <tr>
+                <td><strong>20 日</strong></td>
+                <td>47.14 元</td>
+                <td class="val-red">+9.25%</td>
+                <td>16.01%</td>
+                <td>6.94%</td>
+                <td class="val-red">+9.07%</td>
+                <td><span style="color:#2563eb;font-weight:600;">🔒波段鎖碼</span></td>
+            </tr>
+            
+            <tr>
+                <td><strong>60 日</strong></td>
+                <td>45.79 元</td>
+                <td class="val-red">+12.47%</td>
+                <td>9.86%</td>
+                <td>4.76%</td>
+                <td class="val-red">+5.10%</td>
+                <td><span style="color:#2563eb;font-weight:600;">🔒波段鎖碼</span></td>
+            </tr>
+            
+            <tr>
+                <td><strong>120 日</strong></td>
+                <td>43.44 元</td>
+                <td class="val-red">+18.55%</td>
+                <td>8.57%</td>
+                <td>3.36%</td>
+                <td class="val-red">+5.21%</td>
+                <td></td>
+            </tr>
+            
+            <tr>
+                <td><strong>240 日</strong></td>
+                <td>39.23 元</td>
+                <td class="val-red">+31.28%</td>
+                <td>9.50%</td>
+                <td>4.51%</td>
+                <td class="val-red">+4.99%</td>
+                <td></td>
+            </tr>
+            
+                </tbody>
+            </table>
+        </div>
+
+        <!-- 1.5 關鍵核心主力分點動態雷達 (長線囤貨大戶 ✕ 波段神算高手) -->
+        
+        <div class="section-card">
+            <div class="section-title">🌟 關鍵核心主力分點動態雷達 (長線囤貨大戶 ✕ 1年歷史認證波段高手)</div>
+            <div class="smart-brokers-grid">
+                <div class="sb-column">
+                    <div class="sb-col-title">
+                        <span>🔒 長線囤貨大戶 (中長期鎖碼底氣)</span>
+                        <span style="font-size:0.8rem;color:var(--text-muted);font-weight:normal;">120~240日囤貨純度高</span>
+                    </div>
+                    <div class="sb-list">
+                        
+                <div class="sb-item">
+                    <div class="sb-item-header">
+                        <div class="sb-item-name">
+                            <span>🏢 台灣摩根士丹利</span>
+                            <span class="badge badge-hoarder">🔒長線囤貨</span>
+                        </div>
+                        <div style="font-size:0.85rem;font-weight:700;color:#2563eb;">
+                            純度 65.7%
+                        </div>
+                    </div>
+                    <div class="sb-item-desc">
+                        240日淨買入 <strong>+49,961 張</strong> (佔比 <strong>4.23%</strong>) ｜ <span style="color:#2563eb;font-weight:600;font-size:0.78rem;">● 跨週期持續鎖碼</span>
+                    </div>
+                </div>
+                
+                <div class="sb-item">
+                    <div class="sb-item-header">
+                        <div class="sb-item-name">
+                            <span>🏢 美商高盛</span>
+                            <span class="badge badge-hoarder">🔒長線囤貨</span>
+                        </div>
+                        <div style="font-size:0.85rem;font-weight:700;color:#2563eb;">
+                            純度 56.2%
+                        </div>
+                    </div>
+                    <div class="sb-item-desc">
+                        240日淨買入 <strong>+21,937 張</strong> (佔比 <strong>1.86%</strong>) ｜ <span style="color:#2563eb;font-weight:600;font-size:0.78rem;">● 跨週期持續鎖碼</span>
+                    </div>
+                </div>
+                
+                <div class="sb-item">
+                    <div class="sb-item-header">
+                        <div class="sb-item-name">
+                            <span>🏢 中國信託</span>
+                            <span class="badge badge-hoarder">🔒長線囤貨</span>
+                        </div>
+                        <div style="font-size:0.85rem;font-weight:700;color:#2563eb;">
+                            純度 79.3%
+                        </div>
+                    </div>
+                    <div class="sb-item-desc">
+                        240日淨買入 <strong>+14,642 張</strong> (佔比 <strong>1.24%</strong>) ｜ <span style="color:#64748b;font-size:0.78rem;">● 獨立波段囤貨</span>
+                    </div>
+                </div>
+                
+                <div class="sb-item">
+                    <div class="sb-item-header">
+                        <div class="sb-item-name">
+                            <span>🏢 美林</span>
+                            <span class="badge badge-hoarder">🔒長線囤貨</span>
+                        </div>
+                        <div style="font-size:0.85rem;font-weight:700;color:#2563eb;">
+                            純度 59.6%
+                        </div>
+                    </div>
+                    <div class="sb-item-desc">
+                        240日淨買入 <strong>+13,755 張</strong> (佔比 <strong>1.16%</strong>) ｜ <span style="color:#2563eb;font-weight:600;font-size:0.78rem;">● 跨週期持續鎖碼</span>
+                    </div>
+                </div>
+                
+                <div class="sb-item">
+                    <div class="sb-item-header">
+                        <div class="sb-item-name">
+                            <span>🏢 摩根大通</span>
+                            <span class="badge badge-hoarder">🔒長線囤貨</span>
+                        </div>
+                        <div style="font-size:0.85rem;font-weight:700;color:#2563eb;">
+                            純度 58.5%
+                        </div>
+                    </div>
+                    <div class="sb-item-desc">
+                        120日淨買入 <strong>+8,197 張</strong> (佔比 <strong>1.44%</strong>) ｜ <span style="color:#2563eb;font-weight:600;font-size:0.78rem;">● 跨週期持續鎖碼</span>
+                    </div>
+                </div>
+                
+                <div class="sb-item">
+                    <div class="sb-item-header">
+                        <div class="sb-item-name">
+                            <span>🏢 港商麥格理</span>
+                            <span class="badge badge-hoarder">🔒長線囤貨</span>
+                        </div>
+                        <div style="font-size:0.85rem;font-weight:700;color:#dc2626;">
+                            純度 94.9%
+                        </div>
+                    </div>
+                    <div class="sb-item-desc">
+                        120日淨買入 <strong>+8,006 張</strong> (佔比 <strong>1.41%</strong>) ｜ <span style="color:#2563eb;font-weight:600;font-size:0.78rem;">● 跨週期持續鎖碼</span>
+                    </div>
+                </div>
+                
+                    </div>
+                </div>
+                <div class="sb-column">
+                    <div class="sb-col-title">
+                        <span>🎯 波段神算高手 (1年期逐日帳本回測認證)</span>
+                        <span style="font-size:0.8rem;color:var(--text-muted);font-weight:normal;">歷史波段轉折勝率 ✕ 本波最新動態</span>
+                    </div>
+                    <div class="sb-list">
+                        
+                <div class="sb-item">
+                    <div class="sb-item-header">
+                        <div class="sb-item-name">
+                            <span>🏢 彰銀</span>
+                            <span class="badge badge-swing-sell">🎯歷史賣頂高手 (常駐監控)</span>
+                        </div>
+                        <div style="font-size:0.85rem;font-weight:700;color:#c2410c;">
+                            1年賣頂勝率 57%｜正價差 +22.1%
+                        </div>
+                    </div>
+                    <div class="sb-item-desc">
+                        <div><strong>① 1年回測基因</strong>：過去1年 <strong>5 度</strong>精準於波段高點大賣 (高檔狙擊率 <strong>98%</strong>、賣後回檔勝率 <strong>57%</strong>)，1年買均 <strong>32.7元</strong> ➔ 賣均 <strong>39.9元</strong> (正價差 <strong style='color:#dc2626;'>+7.2元 / +22.1%</strong>)</div><div style='margin-top:3px;'><strong>② 歷史波段實績</strong>：低檔 04-02~04-24 均價 33.35元 抄底 +1,999張 (後20日漲 +16.3%) ➔ 高檔 10-02~10-27 均價 46.35元 (最高 46.35元) 賣出 -6,679張 (波段回檔 -9.6%)</div><div style='margin-top:3px;'><span style='color:#64748b;'>⏳ 本波最新動態：近5日(11-05~11-11)累計 +0張 (今日 -1張)，目前按兵不動，常駐監控下次關鍵轉折出手訊號。</span></div><div style='margin-top:4px;padding:4px 8px;background:#f8fafc;border-left:3px solid #6366f1;font-size:0.8rem;color:#334155;'>🔍 邏輯驗證覆盤：累計 12 次歷史訊號驗證中，直接命中 7 次、左側提早出手(先逆風後應驗) 3 次、失準 2 次 (綜合波段勝率 83%)；操作上常提前 3~5 日左側分批布局或調節。</div>
+                    </div>
+                </div>
+                
+                <div class="sb-item">
+                    <div class="sb-item-header">
+                        <div class="sb-item-name">
+                            <span>🏢 台新-西松</span>
+                            <span class="badge badge-swing-sell">🎯波段賣頂神手 (🚨本波出貨)</span>
+                        </div>
+                        <div style="font-size:0.85rem;font-weight:700;color:#dc2626;">
+                            1年賣頂勝率 64%｜正價差 +5.3%
+                        </div>
+                    </div>
+                    <div class="sb-item-desc">
+                        <div><strong>① 1年回測基因</strong>：過去1年 <strong>9 度</strong>精準於波段高點大賣 (高檔狙擊率 <strong>97%</strong>、賣後回檔勝率 <strong>64%</strong>)，1年買均 <strong>37.4元</strong> ➔ 賣均 <strong>39.3元</strong> (正價差 <strong style='color:#dc2626;'>+2.0元 / +5.3%</strong>)</div><div style='margin-top:3px;'><strong>② 歷史波段實績</strong>：低檔 07-14~07-24 均價 37.68元 抄底 +100張 (後20日漲 +10.1%) ➔ 高檔 09-15~09-16 均價 42.75元 (最高 42.75元) 賣出 -212張 (波段回檔 -5.6%)</div><div style='margin-top:3px;'><span style='color:#dc2626;font-weight:700;'>🚨 本波最新動態：近5日(11-05~11-11)於 44.4~51.5元 再度密集賣超 -63張 (今日 -18張)，重現歷史高勝率賣頂訊號！</span></div><div style='margin-top:4px;padding:4px 8px;background:#f8fafc;border-left:3px solid #6366f1;font-size:0.8rem;color:#334155;'>🔍 邏輯驗證覆盤：累計 14 次歷史訊號驗證中，直接命中 7 次、左側提早出手(先逆風後應驗) 5 次、失準 2 次 (綜合波段勝率 86%)；操作上常提前 3~5 日左側分批布局或調節。</div>
+                    </div>
+                </div>
+                
+                <div class="sb-item">
+                    <div class="sb-item-header">
+                        <div class="sb-item-name">
+                            <span>🏢 群益金鼎</span>
+                            <span class="badge badge-swing-sell">🎯波段賣頂神手 (🚨本波出貨)</span>
+                        </div>
+                        <div style="font-size:0.85rem;font-weight:700;color:#dc2626;">
+                            1年賣頂勝率 67%｜正價差 +1.6%
+                        </div>
+                    </div>
+                    <div class="sb-item-desc">
+                        <div><strong>① 1年回測基因</strong>：過去1年 <strong>9 度</strong>精準於波段高點大賣 (高檔狙擊率 <strong>96%</strong>、賣後回檔勝率 <strong>67%</strong>)，1年買均 <strong>39.1元</strong> ➔ 賣均 <strong>39.7元</strong> (正價差 <strong style='color:#dc2626;'>+0.6元 / +1.6%</strong>)</div><div style='margin-top:3px;'><strong>② 歷史波段實績</strong>：低檔 06-23~07-20 均價 37.96元 抄底 +494張 (後20日漲 +9.3%) ➔ 高檔 06-03~06-25 均價 42.1元 (最高 42.1元) 賣出 -983張 (波段回檔 -7.9%)</div><div style='margin-top:3px;'><span style='color:#dc2626;font-weight:700;'>🚨 本波最新動態：近5日(11-05~11-11)於 44.4~51.5元 再度密集賣超 -620張 (今日 -378張)，重現歷史高勝率賣頂訊號！</span></div><div style='margin-top:4px;padding:4px 8px;background:#f8fafc;border-left:3px solid #6366f1;font-size:0.8rem;color:#334155;'>🔍 邏輯驗證覆盤：前次(11-06 @ 44.4元)觸發賣頂警訊後，股價短線續漲至 51.5元 (+16.0%)，驗證該分點屬「主升段左側逢高分批調節」而非一賣即崩（過去 15 次出手有 5 次先軋後跌、最終波段勝率 100%）。目前於 51.5元 續賣（近5日累計 -620張、今日 -378張），應視為高檔籌碼供給增加之左側預警，宜待跌破 5MA 再確認右側轉折，勿單憑賣超直接摸頭放空。</div>
+                    </div>
+                </div>
+                
+                <div class="sb-item">
+                    <div class="sb-item-header">
+                        <div class="sb-item-name">
+                            <span>🏢 永豐金證券</span>
+                            <span class="badge badge-swing-sell">🎯歷史賣頂高手 (常駐監控)</span>
+                        </div>
+                        <div style="font-size:0.85rem;font-weight:700;color:#c2410c;">
+                            1年賣頂勝率 67%｜正價差 +0.5%
+                        </div>
+                    </div>
+                    <div class="sb-item-desc">
+                        <div><strong>① 1年回測基因</strong>：過去1年 <strong>7 度</strong>精準於波段高點大賣 (高檔狙擊率 <strong>93%</strong>、賣後回檔勝率 <strong>67%</strong>)，1年買均 <strong>35.9元</strong> ➔ 賣均 <strong>36.0元</strong> (正價差 <strong style='color:#dc2626;'>+0.2元 / +0.5%</strong>)</div><div style='margin-top:3px;'><strong>② 歷史波段實績</strong>：低檔 05-18~05-25 均價 35.41元 抄底 +417張 (後20日漲 +18.1%) ➔ 高檔 03-25~04-23 均價 37.92元 (最高 37.92元) 賣出 -7,533張 (波段回檔 -12.4%)</div><div style='margin-top:3px;'><span style='color:#2563eb;font-weight:700;'>🔥 本波最新動態：近5日(11-05~11-11)於 44.4~51.5元 積極買超 +329張 (今日 +120張)，展開波段低檔建倉佈局！</span></div><div style='margin-top:4px;padding:4px 8px;background:#f8fafc;border-left:3px solid #6366f1;font-size:0.8rem;color:#334155;'>🔍 邏輯驗證覆盤：累計 14 次歷史訊號驗證中，直接命中 7 次、左側提早出手(先逆風後應驗) 4 次、失準 3 次 (綜合波段勝率 79%)；操作上常提前 3~5 日左側分批布局或調節。</div>
+                    </div>
+                </div>
+                
+                <div class="sb-item">
+                    <div class="sb-item-header">
+                        <div class="sb-item-name">
+                            <span>🏢 中國信託</span>
+                            <span class="badge badge-swing-buy">🎯歷史買底神手 (🔥本波抄底)</span>
+                        </div>
+                        <div style="font-size:0.85rem;font-weight:700;color:#2563eb;">
+                            1年抄底勝率 60%｜正價差 +5.5%
+                        </div>
+                    </div>
+                    <div class="sb-item-desc">
+                        <div><strong>① 1年回測基因</strong>：過去1年 <strong>6 度</strong>於波段低檔精準抄底 (低檔出手率 <strong>95%</strong>、買後上漲勝率 <strong>60%</strong>)，1年買均 <strong>34.9元</strong> ➔ 賣均 <strong>36.8元</strong> (正價差 <strong style='color:#dc2626;'>+1.9元 / +5.5%</strong>)</div><div style='margin-top:3px;'><strong>② 歷史波段實績</strong>：低檔 02-02~04-22 均價 28.63元 抄底 +6,500張 (後20日漲 +35.5%) ➔ 高檔 06-01~06-10 均價 41.09元 (最高 41.09元) 賣出 -711張 (波段回檔 -6.7%)</div><div style='margin-top:3px;'><span style='color:#dc2626;font-weight:700;'>🚨 本波最新動態：近5日(11-05~11-11)於 44.4~51.5元 再度密集賣超 +615張 (今日 -14張)，重現歷史高勝率賣頂訊號！</span></div><div style='margin-top:4px;padding:4px 8px;background:#f8fafc;border-left:3px solid #6366f1;font-size:0.8rem;color:#334155;'>🔍 邏輯驗證覆盤：累計 15 次歷史訊號驗證中，直接命中 9 次、左側提早出手(先逆風後應驗) 5 次、失準 1 次 (綜合波段勝率 93%)；操作上常提前 3~5 日左側分批布局或調節。</div>
+                    </div>
+                </div>
+                
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+
+        <!-- 1.8 權威財經新聞與催化劑雷達 (Top 5 ｜ MoneyDJ 理財網 ✕ 鉅亨網 Anue) -->
+        
+        <div class="section-card">
+            <h2 class="section-title">
+                📰 權威財經新聞與催化劑雷達 (Top 5)
+                <span style="font-size:0.84rem;color:var(--text-muted);font-weight:normal;margin-left:auto;">本週關鍵財經要聞 ✕ 產業催化劑與籌碼共振檢驗 (MoneyDJ / 鉅亨網 權威白名單)</span>
+            </h2>
+            <div class="news-resonance-banner bull">
+                <div>💡 <strong>消息 ✕ 籌碼共振檢驗：【🛡️ 消息平淡／偏空下主力逆勢吸籌】</strong> — 儘管盤勢或消息面偏保守，核心法人與波段抄底高手仍於低檔逆勢承接鎖碼，籌碼面領先基本面表態。</div>
+            </div>
+            <div class="news-list">
+                
+                <div class="news-card">
+                    <div class="news-rank top3">1</div>
+                    <div>
+                        <a class="news-title-link" href="https://news.google.com/rss/articles/CBMiT0FVX3lxTE9Rb2tJNGRFYlhKQlhmVm15NTlpSUp5NVVwUlFYVnpVRDRtS0lRZGxSZHVXYy1JM180eEs4dWxlT1ZUU0xXQnBNSHNsdE90LVk?oc=5" target="_blank" rel="noopener noreferrer">中鼎:中鼎工程股份有限公司115年第四次法人說明會</a>
+                        <div class="news-meta-row">
+                            <span class="news-badge news-badge-stock">🎯 個股焦點</span>
+                            <span class="news-badge news-badge-neutral">📊 焦點動態</span>
+                            <span class="news-badge news-badge-source">🏛️ 鉅亨網 Anue</span>
+                            <span class="news-time">🕒 </span>
+                        </div>
+                    </div>
+                </div>
+            
+                <div class="news-card">
+                    <div class="news-rank top3">2</div>
+                    <div>
+                        <a class="news-title-link" href="https://news.google.com/rss/articles/CBMimwFBVV95cUxQcUJRdGJ6Zzk0QS10SzZyTk5hZ2c3VUlfeFlhNVFESkpPSWhtRms5aTBZVFN3YnRaaHo3S1NKUW1JQzFWc0tBQkprUTlPZF9GamxzTUlRdk1jX1RfQ25kZmlTSS1odTdWVWRKLUI1bFVmUkZtLXRGeWRXU1dSSVVzNDhhaTZwRm9nN2R5eU55cWlTWi14djZLdExnUQ?oc=5" target="_blank" rel="noopener noreferrer">統一-彰化 對 中鼎(9933)個股 單一券商歷史明細</a>
+                        <div class="news-meta-row">
+                            <span class="news-badge news-badge-stock">🎯 個股焦點</span>
+                            <span class="news-badge news-badge-neutral">📊 焦點動態</span>
+                            <span class="news-badge news-badge-source">🏛️ MoneyDJ 理財網</span>
+                            <span class="news-time">🕒 </span>
+                        </div>
+                    </div>
+                </div>
+            
+                <div class="news-card">
+                    <div class="news-rank top3">3</div>
+                    <div>
+                        <a class="news-title-link" href="https://news.google.com/rss/articles/CBMiU0FVX3lxTE5GdkhFN1VKMnpOQjlpZ1ZtNnp6Z3VvOVkyQUtHTkxkS0w3Vk1DcG5KVVpHdDZ6X1EwamVmWDkzTUhobnk0dzFfc0VkUW5VS0huTXZF?oc=5" target="_blank" rel="noopener noreferrer">中鼎10月營收90.23億元年增53.86% 1—10月達685.96億元</a>
+                        <div class="news-meta-row">
+                            <span class="news-badge news-badge-stock">🎯 個股焦點</span>
+                            <span class="news-badge news-badge-neutral">📊 焦點動態</span>
+                            <span class="news-badge news-badge-source">🏛️ 鉅亨網 Anue</span>
+                            <span class="news-time">🕒 </span>
+                        </div>
+                    </div>
+                </div>
+            
+                <div class="news-card">
+                    <div class="news-rank">4</div>
+                    <div>
+                        <a class="news-title-link" href="https://news.google.com/rss/articles/CBMiU0FVX3lxTFBPZWxEN3dWc2xMT2M4dUViYXRkQW1TNGlYTmNDam82SVZNZldhNkNONU55Y0FjdEVZWXdDU3U3RHdUNE9iYUNodHY1WTl5MC1Pazhv?oc=5" target="_blank" rel="noopener noreferrer">中鼎:公告本公司董事會決議處分榮鼎綠能股份有限公司股權</a>
+                        <div class="news-meta-row">
+                            <span class="news-badge news-badge-stock">🎯 個股焦點</span>
+                            <span class="news-badge news-badge-neutral">📊 焦點動態</span>
+                            <span class="news-badge news-badge-source">🏛️ 鉅亨網 Anue</span>
+                            <span class="news-time">🕒 </span>
+                        </div>
+                    </div>
+                </div>
+            
+                <div class="news-card">
+                    <div class="news-rank">5</div>
+                    <div>
+                        <a class="news-title-link" href="https://news.google.com/rss/articles/CBMiT0FVX3lxTE1hTV9vX2llMThQZmpwTzVzYk9kclp2bGF1ZFpaZ3h0VkxnVWRYRmFPM1hURjc5SDBwZzNfZXFQb0pFNV82a3NCNVdDSVRkMFU?oc=5" target="_blank" rel="noopener noreferrer">〈台股盤前要聞〉台積電Q3配息9元同步入股Anthropic與OpenAI、台股連兩日飆漲千點外資卻持續倒貨</a>
+                        <div class="news-meta-row">
+                            <span class="news-badge news-badge-stock">🎯 個股焦點</span>
+                            <span class="news-badge news-badge-neutral">📊 焦點動態</span>
+                            <span class="news-badge news-badge-source">🏛️ 鉅亨網 Anue</span>
+                            <span class="news-time">🕒 </span>
+                        </div>
+                    </div>
+                </div>
+            
+            </div>
+        </div>
+        
+
+        <!-- 2. 分點進出紅綠雙欄對照看板 (Tabs) -->
+        <div class="section-card">
+            <div class="section-title">👥 各週期關鍵主力分點進出對照看板</div>
+            <div class="tabs-header">
+                <button class="tab-btn active" id="btn-5" onclick="openTab('5')">5 日週期</button><button class="tab-btn " id="btn-20" onclick="openTab('20')">20 日週期</button><button class="tab-btn " id="btn-60" onclick="openTab('60')">60 日週期</button><button class="tab-btn " id="btn-120" onclick="openTab('120')">120 日週期</button><button class="tab-btn " id="btn-240" onclick="openTab('240')">240 日週期</button>
+            </div>
+            
+            <div id="panel-5" class="period-panel active">
+                <div class="table-container">
+                    <div class="table-box">
+                        <div class="table-header-title buyer-title">
+                            <span>🔴 前 5 大買超券商</span>
+                            <span>買方前五佔比: 23.53%</span>
+                        </div>
+                        <table class="broker-table">
+                            <thead>
+                                <tr>
+                                    <th style="width:12%;">名次</th>
+                                    <th>券商分點名稱</th>
+                                    <th style="text-align:right;width:25%;">淨買超</th>
+                                    <th style="text-align:right;width:20%;">比重</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                
+                <tr>
+                    <td><strong>#1</strong></td>
+                    <td>港商麥格理 <span class="badge badge-foreign">🏢波段外資</span><span class="badge badge-hoarder">🔒長線囤貨</span></td>
+                    <td style="text-align:right;" class="val-red">+4,809</td>
+                    <td style="text-align:right;">6.98%</td>
+                </tr>
+                
+                <tr>
+                    <td><strong>#2</strong></td>
+                    <td>台灣摩根士丹利 <span class="badge badge-foreign">🏢波段外資</span><span class="badge badge-hoarder">🔒長線囤貨</span></td>
+                    <td style="text-align:right;" class="val-red">+3,876</td>
+                    <td style="text-align:right;">5.63%</td>
+                </tr>
+                
+                <tr>
+                    <td><strong>#3</strong></td>
+                    <td>港商野村 <span class="badge badge-fake-foreign">⚡短線假外資</span></td>
+                    <td style="text-align:right;" class="val-red">+3,165</td>
+                    <td style="text-align:right;">4.60%</td>
+                </tr>
+                
+                <tr>
+                    <td><strong>#4</strong></td>
+                    <td>美商高盛 <span class="badge badge-foreign">🏢波段外資</span><span class="badge badge-hoarder">🔒長線囤貨</span></td>
+                    <td style="text-align:right;" class="val-red">+3,150</td>
+                    <td style="text-align:right;">4.57%</td>
+                </tr>
+                
+                <tr>
+                    <td><strong>#5</strong></td>
+                    <td>富邦-基隆 </td>
+                    <td style="text-align:right;" class="val-red">+1,208</td>
+                    <td style="text-align:right;">1.75%</td>
+                </tr>
+                
+                            </tbody>
+                        </table>
+                    </div>
+                    <div class="table-box">
+                        <div class="table-header-title seller-title">
+                            <span>🟢 前 5 大賣超券商</span>
+                            <span>賣方前五佔比: 7.72%</span>
+                        </div>
+                        <table class="broker-table">
+                            <thead>
+                                <tr>
+                                    <th style="width:12%;">名次</th>
+                                    <th>券商分點名稱</th>
+                                    <th style="text-align:right;width:25%;">淨賣超</th>
+                                    <th style="text-align:right;width:20%;">比重</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                
+                <tr>
+                    <td><strong>#1</strong></td>
+                    <td>富邦-台北 </td>
+                    <td style="text-align:right;" class="val-green">-1,642</td>
+                    <td style="text-align:right;">2.38%</td>
+                </tr>
+                
+                <tr>
+                    <td><strong>#2</strong></td>
+                    <td>凱基-城中 </td>
+                    <td style="text-align:right;" class="val-green">-1,299</td>
+                    <td style="text-align:right;">1.89%</td>
+                </tr>
+                
+                <tr>
+                    <td><strong>#3</strong></td>
+                    <td>華南永昌-彰化 <span class="badge badge-gov">🏛️官股</span></td>
+                    <td style="text-align:right;" class="val-green">-1,208</td>
+                    <td style="text-align:right;">1.75%</td>
+                </tr>
+                
+                <tr>
+                    <td><strong>#4</strong></td>
+                    <td>群益金鼎 <span class="badge badge-swing-sell">🎯波段賣頂</span></td>
+                    <td style="text-align:right;" class="val-green">-620</td>
+                    <td style="text-align:right;">0.90%</td>
+                </tr>
+                
+                <tr>
+                    <td><strong>#5</strong></td>
+                    <td>國泰-高雄 </td>
+                    <td style="text-align:right;" class="val-green">-551</td>
+                    <td style="text-align:right;">0.80%</td>
+                </tr>
+                
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+            
+            <div id="panel-20" class="period-panel ">
+                <div class="table-container">
+                    <div class="table-box">
+                        <div class="table-header-title buyer-title">
+                            <span>🔴 前 5 大買超券商</span>
+                            <span>買方前五佔比: 16.01%</span>
+                        </div>
+                        <table class="broker-table">
+                            <thead>
+                                <tr>
+                                    <th style="width:12%;">名次</th>
+                                    <th>券商分點名稱</th>
+                                    <th style="text-align:right;width:25%;">淨買超</th>
+                                    <th style="text-align:right;width:20%;">比重</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                
+                <tr>
+                    <td><strong>#1</strong></td>
+                    <td>台灣摩根士丹利 <span class="badge badge-foreign">🏢波段外資</span><span class="badge badge-hoarder">🔒長線囤貨</span></td>
+                    <td style="text-align:right;" class="val-red">+6,811</td>
+                    <td style="text-align:right;">4.26%</td>
+                </tr>
+                
+                <tr>
+                    <td><strong>#2</strong></td>
+                    <td>港商麥格理 <span class="badge badge-foreign">🏢波段外資</span><span class="badge badge-hoarder">🔒長線囤貨</span></td>
+                    <td style="text-align:right;" class="val-red">+6,792</td>
+                    <td style="text-align:right;">4.25%</td>
+                </tr>
+                
+                <tr>
+                    <td><strong>#3</strong></td>
+                    <td>美林 <span class="badge badge-foreign">🏢波段外資</span><span class="badge badge-hoarder">🔒長線囤貨</span></td>
+                    <td style="text-align:right;" class="val-red">+4,413</td>
+                    <td style="text-align:right;">2.76%</td>
+                </tr>
+                
+                <tr>
+                    <td><strong>#4</strong></td>
+                    <td>新加坡商瑞銀 <span class="badge badge-foreign">🏢波段外資</span></td>
+                    <td style="text-align:right;" class="val-red">+4,177</td>
+                    <td style="text-align:right;">2.61%</td>
+                </tr>
+                
+                <tr>
+                    <td><strong>#5</strong></td>
+                    <td>港商野村 <span class="badge badge-foreign">🏢波段外資</span></td>
+                    <td style="text-align:right;" class="val-red">+3,399</td>
+                    <td style="text-align:right;">2.13%</td>
+                </tr>
+                
+                            </tbody>
+                        </table>
+                    </div>
+                    <div class="table-box">
+                        <div class="table-header-title seller-title">
+                            <span>🟢 前 5 大賣超券商</span>
+                            <span>賣方前五佔比: 6.94%</span>
+                        </div>
+                        <table class="broker-table">
+                            <thead>
+                                <tr>
+                                    <th style="width:12%;">名次</th>
+                                    <th>券商分點名稱</th>
+                                    <th style="text-align:right;width:25%;">淨賣超</th>
+                                    <th style="text-align:right;width:20%;">比重</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                
+                <tr>
+                    <td><strong>#1</strong></td>
+                    <td>彰銀 <span class="badge badge-gov">🏛️官股</span><span class="badge badge-swing-sell">🎯波段賣頂</span></td>
+                    <td style="text-align:right;" class="val-green">-5,485</td>
+                    <td style="text-align:right;">3.43%</td>
+                </tr>
+                
+                <tr>
+                    <td><strong>#2</strong></td>
+                    <td>富邦-台北 </td>
+                    <td style="text-align:right;" class="val-green">-1,873</td>
+                    <td style="text-align:right;">1.17%</td>
+                </tr>
+                
+                <tr>
+                    <td><strong>#3</strong></td>
+                    <td>凱基-城中 </td>
+                    <td style="text-align:right;" class="val-green">-1,339</td>
+                    <td style="text-align:right;">0.84%</td>
+                </tr>
+                
+                <tr>
+                    <td><strong>#4</strong></td>
+                    <td>華南永昌-彰化 <span class="badge badge-gov">🏛️官股</span></td>
+                    <td style="text-align:right;" class="val-green">-1,232</td>
+                    <td style="text-align:right;">0.77%</td>
+                </tr>
+                
+                <tr>
+                    <td><strong>#5</strong></td>
+                    <td>元大-敦化 </td>
+                    <td style="text-align:right;" class="val-green">-1,171</td>
+                    <td style="text-align:right;">0.73%</td>
+                </tr>
+                
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+            
+            <div id="panel-60" class="period-panel ">
+                <div class="table-container">
+                    <div class="table-box">
+                        <div class="table-header-title buyer-title">
+                            <span>🔴 前 5 大買超券商</span>
+                            <span>買方前五佔比: 9.86%</span>
+                        </div>
+                        <table class="broker-table">
+                            <thead>
+                                <tr>
+                                    <th style="width:12%;">名次</th>
+                                    <th>券商分點名稱</th>
+                                    <th style="text-align:right;width:25%;">淨買超</th>
+                                    <th style="text-align:right;width:20%;">比重</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                
+                <tr>
+                    <td><strong>#1</strong></td>
+                    <td>港商麥格理 <span class="badge badge-foreign">🏢波段外資</span><span class="badge badge-hoarder">🔒長線囤貨</span></td>
+                    <td style="text-align:right;" class="val-red">+7,806</td>
+                    <td style="text-align:right;">2.57%</td>
+                </tr>
+                
+                <tr>
+                    <td><strong>#2</strong></td>
+                    <td>新加坡商瑞銀 <span class="badge badge-foreign">🏢波段外資</span></td>
+                    <td style="text-align:right;" class="val-red">+6,462</td>
+                    <td style="text-align:right;">2.13%</td>
+                </tr>
+                
+                <tr>
+                    <td><strong>#3</strong></td>
+                    <td>美商高盛 <span class="badge badge-foreign">🏢波段外資</span><span class="badge badge-hoarder">🔒長線囤貨</span></td>
+                    <td style="text-align:right;" class="val-red">+6,253</td>
+                    <td style="text-align:right;">2.06%</td>
+                </tr>
+                
+                <tr>
+                    <td><strong>#4</strong></td>
+                    <td>摩根大通 <span class="badge badge-foreign">🏢波段外資</span><span class="badge badge-hoarder">🔒長線囤貨</span></td>
+                    <td style="text-align:right;" class="val-red">+4,823</td>
+                    <td style="text-align:right;">1.59%</td>
+                </tr>
+                
+                <tr>
+                    <td><strong>#5</strong></td>
+                    <td>台灣摩根士丹利 <span class="badge badge-foreign">🏢波段外資</span><span class="badge badge-hoarder">🔒長線囤貨</span></td>
+                    <td style="text-align:right;" class="val-red">+4,601</td>
+                    <td style="text-align:right;">1.51%</td>
+                </tr>
+                
+                            </tbody>
+                        </table>
+                    </div>
+                    <div class="table-box">
+                        <div class="table-header-title seller-title">
+                            <span>🟢 前 5 大賣超券商</span>
+                            <span>賣方前五佔比: 4.76%</span>
+                        </div>
+                        <table class="broker-table">
+                            <thead>
+                                <tr>
+                                    <th style="width:12%;">名次</th>
+                                    <th>券商分點名稱</th>
+                                    <th style="text-align:right;width:25%;">淨賣超</th>
+                                    <th style="text-align:right;width:20%;">比重</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                
+                <tr>
+                    <td><strong>#1</strong></td>
+                    <td>彰銀 <span class="badge badge-gov">🏛️官股</span><span class="badge badge-swing-sell">🎯波段賣頂</span></td>
+                    <td style="text-align:right;" class="val-green">-6,778</td>
+                    <td style="text-align:right;">2.23%</td>
+                </tr>
+                
+                <tr>
+                    <td><strong>#2</strong></td>
+                    <td>群益金鼎 <span class="badge badge-swing-sell">🎯波段賣頂</span></td>
+                    <td style="text-align:right;" class="val-green">-2,353</td>
+                    <td style="text-align:right;">0.77%</td>
+                </tr>
+                
+                <tr>
+                    <td><strong>#3</strong></td>
+                    <td>元大-敦化 </td>
+                    <td style="text-align:right;" class="val-green">-1,913</td>
+                    <td style="text-align:right;">0.63%</td>
+                </tr>
+                
+                <tr>
+                    <td><strong>#4</strong></td>
+                    <td>富邦-台北 </td>
+                    <td style="text-align:right;" class="val-green">-1,900</td>
+                    <td style="text-align:right;">0.63%</td>
+                </tr>
+                
+                <tr>
+                    <td><strong>#5</strong></td>
+                    <td>永豐金-台中 </td>
+                    <td style="text-align:right;" class="val-green">-1,523</td>
+                    <td style="text-align:right;">0.50%</td>
+                </tr>
+                
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+            
+            <div id="panel-120" class="period-panel ">
+                <div class="table-container">
+                    <div class="table-box">
+                        <div class="table-header-title buyer-title">
+                            <span>🔴 前 5 大買超券商</span>
+                            <span>買方前五佔比: 8.57%</span>
+                        </div>
+                        <table class="broker-table">
+                            <thead>
+                                <tr>
+                                    <th style="width:12%;">名次</th>
+                                    <th>券商分點名稱</th>
+                                    <th style="text-align:right;width:25%;">淨買超</th>
+                                    <th style="text-align:right;width:20%;">比重</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                
+                <tr>
+                    <td><strong>#1</strong></td>
+                    <td>台灣摩根士丹利 <span class="badge badge-foreign">🏢波段外資</span><span class="badge badge-hoarder">🔒長線囤貨</span></td>
+                    <td style="text-align:right;" class="val-red">+16,775</td>
+                    <td style="text-align:right;">2.95%</td>
+                </tr>
+                
+                <tr>
+                    <td><strong>#2</strong></td>
+                    <td>摩根大通 <span class="badge badge-foreign">🏢波段外資</span><span class="badge badge-hoarder">🔒長線囤貨</span></td>
+                    <td style="text-align:right;" class="val-red">+8,197</td>
+                    <td style="text-align:right;">1.44%</td>
+                </tr>
+                
+                <tr>
+                    <td><strong>#3</strong></td>
+                    <td>美商高盛 <span class="badge badge-foreign">🏢波段外資</span><span class="badge badge-hoarder">🔒長線囤貨</span></td>
+                    <td style="text-align:right;" class="val-red">+8,075</td>
+                    <td style="text-align:right;">1.42%</td>
+                </tr>
+                
+                <tr>
+                    <td><strong>#4</strong></td>
+                    <td>港商麥格理 <span class="badge badge-foreign">🏢波段外資</span><span class="badge badge-hoarder">🔒長線囤貨</span></td>
+                    <td style="text-align:right;" class="val-red">+8,006</td>
+                    <td style="text-align:right;">1.41%</td>
+                </tr>
+                
+                <tr>
+                    <td><strong>#5</strong></td>
+                    <td>美林 <span class="badge badge-foreign">🏢波段外資</span><span class="badge badge-hoarder">🔒長線囤貨</span></td>
+                    <td style="text-align:right;" class="val-red">+7,706</td>
+                    <td style="text-align:right;">1.35%</td>
+                </tr>
+                
+                            </tbody>
+                        </table>
+                    </div>
+                    <div class="table-box">
+                        <div class="table-header-title seller-title">
+                            <span>🟢 前 5 大賣超券商</span>
+                            <span>賣方前五佔比: 3.36%</span>
+                        </div>
+                        <table class="broker-table">
+                            <thead>
+                                <tr>
+                                    <th style="width:12%;">名次</th>
+                                    <th>券商分點名稱</th>
+                                    <th style="text-align:right;width:25%;">淨賣超</th>
+                                    <th style="text-align:right;width:20%;">比重</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                
+                <tr>
+                    <td><strong>#1</strong></td>
+                    <td>彰銀 <span class="badge badge-gov">🏛️官股</span><span class="badge badge-swing-sell">🎯波段賣頂</span></td>
+                    <td style="text-align:right;" class="val-green">-8,740</td>
+                    <td style="text-align:right;">1.54%</td>
+                </tr>
+                
+                <tr>
+                    <td><strong>#2</strong></td>
+                    <td>群益金鼎 <span class="badge badge-swing-sell">🎯波段賣頂</span></td>
+                    <td style="text-align:right;" class="val-green">-3,471</td>
+                    <td style="text-align:right;">0.61%</td>
+                </tr>
+                
+                <tr>
+                    <td><strong>#3</strong></td>
+                    <td>統一 </td>
+                    <td style="text-align:right;" class="val-green">-2,899</td>
+                    <td style="text-align:right;">0.51%</td>
+                </tr>
+                
+                <tr>
+                    <td><strong>#4</strong></td>
+                    <td>元大-敦化 </td>
+                    <td style="text-align:right;" class="val-green">-2,074</td>
+                    <td style="text-align:right;">0.36%</td>
+                </tr>
+                
+                <tr>
+                    <td><strong>#5</strong></td>
+                    <td>國泰-敦南 </td>
+                    <td style="text-align:right;" class="val-green">-1,939</td>
+                    <td style="text-align:right;">0.34%</td>
+                </tr>
+                
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+            
+            <div id="panel-240" class="period-panel ">
+                <div class="table-container">
+                    <div class="table-box">
+                        <div class="table-header-title buyer-title">
+                            <span>🔴 前 5 大買超券商</span>
+                            <span>買方前五佔比: 9.50%</span>
+                        </div>
+                        <table class="broker-table">
+                            <thead>
+                                <tr>
+                                    <th style="width:12%;">名次</th>
+                                    <th>券商分點名稱</th>
+                                    <th style="text-align:right;width:25%;">淨買超</th>
+                                    <th style="text-align:right;width:20%;">比重</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                
+                <tr>
+                    <td><strong>#1</strong></td>
+                    <td>台灣摩根士丹利 <span class="badge badge-foreign">🏢波段外資</span><span class="badge badge-hoarder">🔒長線囤貨</span></td>
+                    <td style="text-align:right;" class="val-red">+49,961</td>
+                    <td style="text-align:right;">4.23%</td>
+                </tr>
+                
+                <tr>
+                    <td><strong>#2</strong></td>
+                    <td>美商高盛 <span class="badge badge-foreign">🏢波段外資</span><span class="badge badge-hoarder">🔒長線囤貨</span></td>
+                    <td style="text-align:right;" class="val-red">+21,937</td>
+                    <td style="text-align:right;">1.86%</td>
+                </tr>
+                
+                <tr>
+                    <td><strong>#3</strong></td>
+                    <td>中國信託 <span class="badge badge-hoarder">🔒長線囤貨</span><span class="badge badge-swing-buy">🎯買底神手</span></td>
+                    <td style="text-align:right;" class="val-red">+14,642</td>
+                    <td style="text-align:right;">1.24%</td>
+                </tr>
+                
+                <tr>
+                    <td><strong>#4</strong></td>
+                    <td>美林 <span class="badge badge-foreign">🏢波段外資</span><span class="badge badge-hoarder">🔒長線囤貨</span></td>
+                    <td style="text-align:right;" class="val-red">+13,755</td>
+                    <td style="text-align:right;">1.16%</td>
+                </tr>
+                
+                <tr>
+                    <td><strong>#5</strong></td>
+                    <td>凱基-台北 <span class="badge badge-daytrader">⚠️隔日沖</span></td>
+                    <td style="text-align:right;" class="val-red">+11,942</td>
+                    <td style="text-align:right;">1.01%</td>
+                </tr>
+                
+                            </tbody>
+                        </table>
+                    </div>
+                    <div class="table-box">
+                        <div class="table-header-title seller-title">
+                            <span>🟢 前 5 大賣超券商</span>
+                            <span>賣方前五佔比: 4.51%</span>
+                        </div>
+                        <table class="broker-table">
+                            <thead>
+                                <tr>
+                                    <th style="width:12%;">名次</th>
+                                    <th>券商分點名稱</th>
+                                    <th style="text-align:right;width:25%;">淨賣超</th>
+                                    <th style="text-align:right;width:20%;">比重</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                
+                <tr>
+                    <td><strong>#1</strong></td>
+                    <td>元大-敦化 </td>
+                    <td style="text-align:right;" class="val-green">-24,785</td>
+                    <td style="text-align:right;">2.10%</td>
+                </tr>
+                
+                <tr>
+                    <td><strong>#2</strong></td>
+                    <td>統一 </td>
+                    <td style="text-align:right;" class="val-green">-11,855</td>
+                    <td style="text-align:right;">1.00%</td>
+                </tr>
+                
+                <tr>
+                    <td><strong>#3</strong></td>
+                    <td>彰銀 <span class="badge badge-gov">🏛️官股</span><span class="badge badge-swing-sell">🎯波段賣頂</span></td>
+                    <td style="text-align:right;" class="val-green">-8,355</td>
+                    <td style="text-align:right;">0.71%</td>
+                </tr>
+                
+                <tr>
+                    <td><strong>#4</strong></td>
+                    <td>群益金鼎 <span class="badge badge-swing-sell">🎯波段賣頂</span></td>
+                    <td style="text-align:right;" class="val-green">-4,191</td>
+                    <td style="text-align:right;">0.35%</td>
+                </tr>
+                
+                <tr>
+                    <td><strong>#5</strong></td>
+                    <td>永豐金證券 <span class="badge badge-swing-sell">🎯波段賣頂</span></td>
+                    <td style="text-align:right;" class="val-green">-4,093</td>
+                    <td style="text-align:right;">0.35%</td>
+                </tr>
+                
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+            
+        </div>
+
+        <!-- 3. AI 深度診斷報告 (含3秒決策Banner與語意高亮) -->
+        <div class="section-card">
+            <div class="section-title">🤖 AI 機構籌碼分析師波段戰略深度報告</div>
+            
+                <div class="hero-decision banner-danger">
+                    <div class="hero-title">🚨 【週報波段轉折警報】1 年歷史認證賣頂高手「台新-西松」本週密集調節出貨！</div>
+                    <div class="hero-desc">過去 1 年 9 度於波段高點精準逃頂 (回檔勝率 64%、正價差 +5.3%) 之神準分點，近 5 日再度賣超 -63 張。下週切勿盲目追高，嚴守 20D VWAP (47.14 元) 與 60D POC (45.5~46.9元) 防線！</div>
+                </div>
+                
+            <div class="analysis-content">
+                <h2>台股機構籌碼戰略週報：9933 中鼎 (2026-11-11)</h2>
+<h3>一、集保大戶週趨勢與融資對沖結構驗證</h3>
+<p>本週中鼎(9933)的籌碼面呈現多空交織但偏向多方的態勢。集保大戶的集中度持續提升，最新一週集中度增加0.40%至64.77%，千張大戶持股比例達42.41%，顯示長期持有者對中鼎的信心與掌控力仍在增強。此為籌碼穩定的積極訊號。</p>
+<p>然而，需特別留意融資餘額激增3,410張至10,960張。儘管部分融資可能來自機構的槓桿操作，但如此大幅度的增加，通常伴隨著散戶資金的積極追價。這形成籌碼集中度提升與融資同步增加的對沖結構：一方面大戶持續<span class="bullish-tag">▲ 鎖碼</span>，另一方面市場散戶情緒也趨於熱絡。此現象雖反映市場對股價上漲的信心，但短期內若籌碼換手不及，亦需留意融資過熱可能帶來的修正風險。目前來看，在強勢的主力<span class="bullish-tag">▲ 吸籌</span>下，融資增加可視為市場活絡的象徵，但其後續變化將是觀察股價穩定性的關鍵指標。</p>
+<h3>二、多週期主力成本階梯 ✕ 60日籌碼峰支撐壓力位階</h3>
+<p>中鼎股價(<span class="price-pill">📌 51.5元</span>)目前已全面<span class="bullish-tag">▲ 站穩</span>各週期主力成本之上，對比20日VWAP(<span class="price-pill">📌 47.14元</span>)、60日VWAP(<span class="price-pill">📌 45.79元</span>)、120日VWAP(<span class="price-pill">📌 43.44元</span>)及240日VWAP(<span class="price-pill">📌 39.23元</span>)，分別呈現9.2%至31.3%的正乖離，技術面呈現強勁的<span class="bullish-tag">▲ 多頭</span>排列放量攻擊態勢，且今日成交量為近期的3.11倍。這顯示股價在過去一段時間累積了堅實的底部，並在近期啟動攻擊。</p>
+<p>特別值得注意的是，股價已有效<span class="bullish-tag">▲ 突破</span>60日籌碼密集峰(POC)<span class="price-pill">📌 45.5~46.92元</span>，此區間累積了23.24%的換手量。一旦<span class="bullish-tag">▲ 突破</span>，此密集區將從先前的壓力轉化為堅實的短期支撐帶，為後續上攻奠定基礎。當前股價大幅領先各週期主力成本，顯示市場共識正積極推升股價，短期上漲動能充沛。</p>
+<h3>三、關鍵分點深度解析 ✕ 本週Top5權威財經新聞交叉驗證</h3>
+<p><strong>1. <span class="badge badge-hoarder">🔒 長線囤貨</span>大戶<span class="bullish-tag">▲ 鎖碼</span>底氣：</strong>
+從240D週期數據可見，<span class="broker-pill">🏢 台灣摩根士丹利</span>(M.S.)、<span class="broker-pill">🏢 美商高盛</span>(Goldman Sachs)和<span class="broker-pill">🏢 中國信託</span>等外資與本土大戶持續穩健累積中鼎部位。其中<span class="broker-pill">🏢 台灣摩根士丹利</span>更是大幅增持近5萬張，<span class="broker-pill">🏢 美商高盛</span>也加碼逾2萬張，顯示這些核心法人對中鼎長期營運前景的高度認同與堅定持有。本週中鼎公告10月營收高達90.23億元，年增53.86%的亮眼表現，累計前10月營收也達到685.96億元，如此強勁的基本面數據為這些大戶的長期<span class="bullish-tag">▲ 鎖碼</span>提供堅實底氣。此外，公司董事會決議處分榮鼎綠能股權，此舉可能被視為優化資產配置或為新專案籌措資金，對營運是中性<span class="bullish-tag">▲ 偏多</span>。儘管系統提示「消息平淡／<span class="bearish-tag">▼ 偏空</span>下主力逆勢<span class="bullish-tag">▲ 吸籌</span>」，但中鼎自身營收爆發，顯示機構資金正選擇性佈局業績成長股，形成籌碼面與基本面共振的強勢逆襲。</p>
+<p><strong>2. 1年歷史認證波段高手最新動向：</strong>
+*   <strong>短期主導力量：</strong> 近5日主力買盤集中在<span class="broker-pill">🏢 港商麥格理</span>(<span class="val-pos">+4,809張</span>)、<span class="broker-pill">🏢 台灣摩根士丹利</span>(<span class="val-pos">+3,876張</span>)和<span class="broker-pill">🏢 港商野村</span>(<span class="val-pos">+3,165張</span>)，其中<span class="broker-pill">🏢 台灣摩根士丹利</span>今日更單日買超4,523張，顯示外資短線高度看多且積極搶進。
+*   <strong><span class="badge badge-swing-sell">🎯 波段賣頂</span>高手動向：</strong> 歷史上精準的賣頂高手如「<span class="broker-pill">🏢 台新-西松</span>」近5日再度連賣63張(今日<span class="val-neg">-18張</span>)，「<span class="broker-pill">🏢 群益金鼎</span>」更是連賣620張(今日<span class="val-neg">-378張</span>)，顯示其在高檔持續進行獲利了結。然而，系統針對「<span class="broker-pill">🏢 群益金鼎</span>」的「左側早賣觀察」提示(前次被軋<span class="val-pos">+16%</span>)至關重要，這暗示其賣出策略通常在主升段左側分批調節，並不意味著股價立即反轉，反而可能是股價仍有上漲空間時的預防性<span class="bearish-tag">▼ 賣壓</span>。
+*   <strong>抄底高手重新佈局：</strong> 與賣頂高手形成對比，「<span class="broker-pill">🏢 永豐金證券</span>」近5日轉賣為買(<span class="val-pos">+329張</span>)，而「<span class="broker-pill">🏢 中國信託</span>」作為歷史低檔抄底高手，近5日也積極買超615張，顯示部分機構對後續行情仍持樂觀態度，並在當前位階尋求佈局機會。</p>
+<h3>四、下週波段實戰操盤指引</h3>
+<p><strong>1. 多空態勢：</strong>
+中鼎目前處於強勢<span class="bullish-tag">▲ 多頭</span>格局，法人籌碼高度集中，特別是長線大戶的持續<span class="bullish-tag">▲ 鎖碼</span>和短期外資的積極買進，配合10月營收的強勁基本面支撐，以及股價<span class="bullish-tag">▲ 突破</span>籌碼密集峰後的強勁表現，多方動能充足。然而，融資水位快速拉升以及部分<span class="badge badge-swing-sell">🎯 波段賣頂</span>高手的逢高調節，暗示短期震盪與獲利了結壓力亦不可輕忽。</p>
+<p><strong>2. 關鍵支撐與停損價：</strong>
+*   <strong>強力防守支撐帶：</strong> 60日籌碼密集峰(POC)<span class="price-pill">📌 45.5~46.92元</span>，此區間已轉為關鍵支撐。
+*   <strong>中期支撐：</strong> 20日VWAP <span class="price-pill">📌 47.14元</span>，代表20日主力平均成本。
+*   <strong>關鍵破位停損價：</strong> 若股價收盤<span class="bearish-tag">▼ 跌破</span><span class="price-pill">📌 47.0元</span>，則應嚴格執行停損，以規避風險，因為這可能意味著主力防線被<span class="bullish-tag">▲ 突破</span>，短期趨勢轉弱。</p>
+<p><strong>3. <span class="bullish-tag">▲ 突破</span>加碼點與操作建議：</strong>
+*   <strong>觀察重點：</strong> 需密切關注股價在目前高檔區間的量價變化，以及外資主力的連續買超力道。
+*   <strong>加碼時機：</strong> 若股價能持續<span class="bullish-tag">▲ 站穩</span><span class="price-pill">📌 51.5元</span>之上，並有效<span class="bullish-tag">▲ 突破</span>近期高點，配合量能放大，可視為多方進一步攻擊訊號，或可考慮順勢加碼。
+*   <strong>高檔換手預警：</strong> 在「<span class="broker-pill">🏢 群益金鼎</span>」的左側賣出策略下，股價未跌破5日均線(MA)前，不宜過度解讀為即將反轉，而應視為高檔換手與獲利了結的壓力，可能造成盤中震盪。投資人應避免在急漲後追高，適度利用拉回修正時機，若能確認在POC區間獲得有效支撐，則可考慮分批佈局。
+*   <strong>風險管理：</strong> 由於股價已處於較高位階，且融資水位偏高，建議投資人設定明確的停損點，嚴控倉位風險。</p>
+            </div>
+        </div>
+
+        <div class="footer">
+            報告產出時間：2026-11-12 16:00:02 ｜ 專案架構：TWSE Multi-Period Chip Agent
+        </div>
+    </div>
+
+    <script>
+        function openTab(tabId) {
+            document.querySelectorAll('.tab-btn').forEach(btn => btn.classList.remove('active'));
+            document.querySelectorAll('.period-panel').forEach(p => p.classList.remove('active'));
+            const btn = document.getElementById('btn-' + tabId);
+            const panel = document.getElementById('panel-' + tabId);
+            if (btn && panel) {
+                btn.classList.add('active');
+                panel.classList.add('active');
+            }
+        }
+    </script>
+</body>
+</html>

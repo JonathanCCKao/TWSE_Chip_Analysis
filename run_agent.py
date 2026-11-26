@@ -17,10 +17,12 @@ from src.collector import (
     fetch_institutional_investors,
     fetch_margin_trading,
     fetch_shareholding_dispersion,
-    fetch_volume_profile_and_fundamentals
+    fetch_volume_profile_and_fundamentals,
+    fetch_authoritative_financial_news,
 )
 from src.db import ChipDatabase
 from src.quant import QuantEngine
+from src.broker_kb import BrokerKnowledgeBase
 from src.reporter import ChipReporter
 from src.signals import fmt_price
 from src.stock_resolver import StockResolver, load_watchlist
@@ -64,6 +66,13 @@ def run(
     effective_ai_policy = ai_policy or config.get("ai_policy", "cached")
     backtest_ttl_days = int(config.get("backtest_ttl_days", 7))
     cold_window_ttl_days = int(config.get("cold_window_ttl_days", 5))
+    broker_kb_dir = config.get("broker_kb_dir", "brokers")
+    tracked_brokers_cfg = config.get("tracked_brokers", {})
+    news_config = config.get("news_config", {})
+    news_enabled = bool(news_config.get("enabled", True))
+    news_top_k = int(news_config.get("top_k", 5))
+    news_max_stock = int(news_config.get("max_stock_news", 4))
+    news_min_macro = int(news_config.get("min_macro_news", 1))
 
     # 1. 初始化股票名稱/代碼識別器、資料庫、量化引擎與報告器
     resolver = StockResolver()
@@ -74,6 +83,7 @@ def run(
         thresholds=thresholds,
         backtest_ttl_days=backtest_ttl_days,
     )
+    broker_kb = BrokerKnowledgeBase(db, base_dir=broker_kb_dir)
     reporter = ChipReporter(
         key_path=gemini_key_path,
         model_name=model_name,
@@ -169,9 +179,74 @@ def run(
             margin_data=margin_data,
             dispersion_data=disp_data,
             profile_data=profile_data,
-            force_rebuild_backtest=force_refresh,
+            force_rebuild_backtest=(force_refresh or mode == "weekly"),
         )
         metrics["stock_name"] = stock_name
+
+        # 2.3.2 關鍵大戶分點知識庫 (.md) 增量帳本同步與「判讀邏輯自我驗證」
+        effective_trade_date = metrics.get("trade_date") or anchor_date or datetime.now().strftime("%Y-%m-%d")
+        kb_result = broker_kb.sync_stock_knowledge_base(
+            stock_id=stock_id,
+            stock_name=stock_name,
+            anchor_date=effective_trade_date,
+            ref_price=metrics.get("reference_price", 0.0),
+            smart_brokers=metrics.get("smart_brokers", {}),
+            profile_data=profile_data,
+            extra_tracked_brokers=tracked_brokers_cfg.get(stock_id, []),
+            force_refresh=force_refresh,
+        )
+        metrics["broker_kb"] = kb_result
+
+        # 若邏輯自我驗證發現某位波段高手處於「主升段左側早賣/短線被軋」或「左側早買/短線套牢」，同步於宏觀訊號補充說明
+        for b_sum in kb_result.get("brokers", []):
+            cal = b_sum.get("calibration", {})
+            badge_txt = cal.get("calibration_badge", "")
+            if cal.get("confidence_state") == "LEFT_SIDE_CAUTION":
+                if "早賣" in badge_txt and (b_sum.get("net_5d", 0) <= -10 or b_sum.get("net_1d", 0) <= -5):
+                    metrics["macro_signals"].append(
+                        f"🔍 【大戶訊號驗證校正】「{b_sum['broker_name']}」{badge_txt}，"
+                        f"顯示其習慣於主升段左側分批逢高調節，未跌破 5MA 前宜視為高檔換手預警而非立即崩跌訊號。"
+                    )
+                elif "早買" in badge_txt and (b_sum.get("net_5d", 0) >= 10 or b_sum.get("net_1d", 0) >= 5):
+                    metrics["macro_signals"].append(
+                        f"🔍 【大戶訊號驗證校正】「{b_sum['broker_name']}」{badge_txt}，"
+                        f"顯示其習慣於回檔段左側分批逢低承接，須待股價站回 5MA 方可確認右側止跌轉強。"
+                    )
+
+        # 2.3.5 權威財經新聞與催化劑雷達 (Top 5 混合配置 + SQLite 快取 + 零 Token 本地評分)
+        modes_to_run = ["daily", "weekly"] if mode == "both" else [mode]
+        metrics["news_by_mode"] = {}
+        metrics["resonance_by_mode"] = {}
+
+        if news_enabled:
+            for m in modes_to_run:
+                cached_news = None if force_refresh else db.get_news_cache(stock_id, effective_trade_date, m)
+                if cached_news:
+                    logger.info(
+                        f"⚡ [News Cache] {display_label} ({m}) 命中同日權威財經新聞快取 ({len(cached_news)} 則)"
+                    )
+                    news_list = cached_news
+                else:
+                    news_list = fetch_authoritative_financial_news(
+                        stock_id=stock_id,
+                        stock_name=stock_name,
+                        anchor_date=effective_trade_date,
+                        mode=m,
+                        top_k=news_top_k,
+                        max_stock_news=news_max_stock,
+                        min_macro_news=news_min_macro,
+                    )
+                    if news_list:
+                        db.save_news_cache(stock_id, effective_trade_date, m, news_list)
+                if news_list:
+                    news_list = sorted(news_list, key=ChipReporter._get_news_sort_key, reverse=True)
+                metrics["news_by_mode"][m] = news_list
+                metrics["resonance_by_mode"][m] = quant.evaluate_chip_news_resonance(metrics, news_list)
+
+            # 預設填入第一個執行模式的欄位於頂層以相容單一模式呼叫
+            first_m = modes_to_run[0]
+            metrics["news_items"] = metrics["news_by_mode"].get(first_m, [])
+            metrics["chip_news_resonance"] = metrics["resonance_by_mode"].get(first_m, {})
 
         results_summary[stock_id] = {
             "stock_name": stock_name,

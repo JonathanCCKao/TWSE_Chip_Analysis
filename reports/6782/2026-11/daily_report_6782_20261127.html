@@ -1,0 +1,2169 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>【6782】多維度籌碼主力意圖診斷看板 - 2026-11-27</title>
+    <!-- ECharts CDN for lightweight interactive candlestick & volume chart -->
+    <script src="https://cdn.jsdelivr.net/npm/echarts@5.4.3/dist/echarts.min.js"></script>
+    <style>
+        :root {
+            --bg-color: #f1f5f9;
+            --card-bg: #ffffff;
+            --text-main: #0f172a;
+            --text-muted: #64748b;
+            --primary: #2563eb;
+            --primary-light: #eff6ff;
+            --tw-red: #dc2626;
+            --tw-red-bg: #fef2f2;
+            --tw-red-border: #fecaca;
+            --tw-green: #16a34a;
+            --tw-green-bg: #f0fdf4;
+            --tw-green-border: #bbf7d0;
+            --border: #e2e8f0;
+        }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "PingFang TC", "Microsoft JhengHei", sans-serif;
+            background-color: var(--bg-color);
+            color: var(--text-main);
+            line-height: 1.6;
+            margin: 0;
+            padding: 24px 12px;
+        }
+        .container {
+            max-width: 1040px;
+            margin: 0 auto;
+        }
+        .header-card {
+            background: var(--card-bg);
+            border-radius: 12px;
+            padding: 24px 30px;
+            margin-bottom: 20px;
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.04);
+            border: 1px solid var(--border);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            flex-wrap: wrap;
+            gap: 15px;
+        }
+        .header-title h1 {
+            margin: 0;
+            font-size: 1.7rem;
+            color: #0f172a;
+        }
+        .header-subtitle {
+            color: var(--text-muted);
+            font-size: 0.95rem;
+            margin-top: 6px;
+            display: flex;
+            align-items: center;
+            flex-wrap: wrap;
+            gap: 6px;
+        }
+        .report-timestamp {
+            color: #1e40af;
+            background: #dbeafe;
+            padding: 2px 8px;
+            border-radius: 4px;
+            font-weight: 600;
+            font-size: 0.88rem;
+            display: inline-block;
+        }
+        .mode-badge {
+            padding: 2px 9px;
+            border-radius: 6px;
+            font-size: 0.85rem;
+            font-weight: 700;
+            display: inline-block;
+        }
+        .mode-daily {
+            background: #fef3c7;
+            color: #b45309;
+            border: 1px solid #fde68a;
+        }
+        .mode-weekly {
+            background: #ede9fe;
+            color: #6d28d9;
+            border: 1px solid #ddd6fe;
+        }
+        .sep {
+            color: #cbd5e1;
+            margin: 0 2px;
+        }
+        .price-badge {
+            background: #f8fafc;
+            border: 1px solid var(--border);
+            padding: 10px 18px;
+            border-radius: 10px;
+            text-align: right;
+        }
+        .price-label {
+            font-size: 0.8rem;
+            color: var(--text-muted);
+        }
+        .price-val {
+            font-size: 1.6rem;
+            font-weight: 700;
+            color: var(--tw-red);
+        }
+
+        /* 3個月 K線圖與成交量樣式 */
+        .kline-card {
+            background: var(--card-bg);
+            border-radius: 12px;
+            padding: 18px 20px 12px 20px;
+            margin-bottom: 20px;
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.04);
+            border: 1px solid var(--border);
+        }
+        .kline-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 6px;
+            flex-wrap: wrap;
+            gap: 8px;
+        }
+        .kline-title {
+            font-size: 1.05rem;
+            font-weight: 700;
+            color: #1e293b;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        .kline-tags {
+            display: inline-flex;
+            gap: 6px;
+            font-size: 0.75rem;
+            font-weight: 600;
+            margin-left: 8px;
+        }
+        .k-tag {
+            padding: 1px 6px;
+            border-radius: 4px;
+        }
+        .k-ma5 { background: #fef3c7; color: #b45309; }
+        .k-ma20 { background: #dbeafe; color: #1d4ed8; }
+        .k-ma60 { background: #f3e8ff; color: #7e22ce; }
+        .kline-note {
+            font-size: 0.8rem;
+            color: var(--text-muted);
+        }
+
+        /* 宏觀雷達卡片 (4欄 Grid) */
+        .radar-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 16px;
+            margin-bottom: 20px;
+        }
+        @media (max-width: 768px) {
+            .radar-grid {
+                grid-template-columns: 1fr;
+            }
+        }
+        .radar-card {
+            background: var(--card-bg);
+            border-radius: 12px;
+            padding: 18px 22px;
+            border: 1px solid var(--border);
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.04);
+        }
+        .radar-card-title {
+            font-size: 1.02rem;
+            font-weight: 700;
+            margin-bottom: 12px;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+        .radar-items {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 10px;
+            text-align: center;
+        }
+        .radar-item {
+            background: #f8fafc;
+            padding: 8px 10px;
+            border-radius: 8px;
+            border: 1px solid var(--border);
+        }
+        .radar-label {
+            font-size: 0.76rem;
+            color: var(--text-muted);
+            margin-bottom: 2px;
+        }
+        .radar-val {
+            font-size: 0.96rem;
+            font-weight: 700;
+        }
+        .macro-alert-box {
+            background: #fffbeb;
+            border: 1px solid #fef3c7;
+            border-left: 4px solid #f59e0b;
+            padding: 12px 16px;
+            border-radius: 8px;
+            margin-bottom: 24px;
+            font-size: 0.95rem;
+            color: #92400e;
+            font-weight: 600;
+        }
+
+        /* 總覽表格 */
+        .section-card {
+            background: var(--card-bg);
+            border-radius: 12px;
+            padding: 24px 30px;
+            margin-bottom: 24px;
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.04);
+            border: 1px solid var(--border);
+        }
+        .section-title {
+            font-size: 1.25rem;
+            font-weight: 700;
+            margin-top: 0;
+            margin-bottom: 16px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        .matrix-table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 0.95rem;
+        }
+        .matrix-table th {
+            background: #f8fafc;
+            color: #475569;
+            font-weight: 600;
+            padding: 12px 10px;
+            border-bottom: 2px solid var(--border);
+            text-align: center;
+        }
+        .matrix-table td {
+            padding: 12px 10px;
+            border-bottom: 1px solid var(--border);
+            text-align: center;
+        }
+        .matrix-table tr:hover td {
+            background-color: #f8fafc;
+        }
+        .val-red {
+            color: var(--tw-red);
+            font-weight: 600;
+        }
+        .val-green {
+            color: var(--tw-green);
+            font-weight: 600;
+        }
+
+        /* 週期 Tabs 與分點對照卡片 */
+        .tabs-header {
+            display: flex;
+            gap: 8px;
+            margin-bottom: 18px;
+            flex-wrap: wrap;
+        }
+        .tab-btn {
+            padding: 8px 16px;
+            border-radius: 8px;
+            border: 1px solid var(--border);
+            background: #f8fafc;
+            color: #475569;
+            font-size: 0.95rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.15s ease;
+        }
+        .tab-btn:hover {
+            background: #e2e8f0;
+        }
+        .tab-btn.active {
+            background: var(--primary);
+            color: #ffffff;
+            border-color: var(--primary);
+        }
+        .period-panel {
+            display: none;
+        }
+        .period-panel.active {
+            display: block;
+        }
+
+        .broker-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 20px;
+        }
+        @media (max-width: 768px) {
+            .broker-grid {
+                grid-template-columns: 1fr;
+            }
+        }
+        .side-card {
+            border-radius: 10px;
+            padding: 18px;
+            border: 1px solid var(--border);
+        }
+        .side-card.buy {
+            background: var(--tw-red-bg);
+            border-color: var(--tw-red-border);
+        }
+        .side-card.sell {
+            background: var(--tw-green-bg);
+            border-color: var(--tw-green-border);
+        }
+        .side-header {
+            font-weight: 700;
+            font-size: 1.05rem;
+            margin-bottom: 12px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        .side-header.buy {
+            color: var(--tw-red);
+        }
+        .side-header.sell {
+            color: var(--tw-green);
+        }
+        .broker-table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 0.92rem;
+            background: #ffffff;
+            border-radius: 8px;
+            overflow: hidden;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.03);
+        }
+        .broker-table th {
+            background: #f8fafc;
+            padding: 8px 10px;
+            font-weight: 600;
+            font-size: 0.85rem;
+            color: #64748b;
+            border-bottom: 1px solid var(--border);
+        }
+        .broker-table td {
+            padding: 9px 10px;
+            border-bottom: 1px solid #f1f5f9;
+        }
+        .broker-table tr:last-child td {
+            border-bottom: none;
+        }
+        .badge {
+            display: inline-block;
+            font-size: 0.72rem;
+            padding: 2px 6px;
+            border-radius: 4px;
+            font-weight: 600;
+            margin-left: 4px;
+            vertical-align: middle;
+        }
+        .badge-daytrader {
+            background: #fee2e2;
+            color: #b91c1c;
+            border: 1px solid #fca5a5;
+        }
+        .badge-fake-foreign {
+            background: #fdf4ff;
+            color: #a21caf;
+            border: 1px solid #f0abfc;
+        }
+        .badge-foreign {
+            background: #e0f2fe;
+            color: #0369a1;
+            border: 1px solid #bae6fd;
+        }
+        .badge-gov {
+            background: #fef3c7;
+            color: #92400e;
+            border: 1px solid #fde68a;
+        }
+        .badge-disc {
+            background: #eef2ff;
+            color: #4338ca;
+            border: 1px solid #c7d2fe;
+            font-weight: 700;
+        }
+        .badge-hoarder {
+            background: #eff6ff;
+            color: #1d4ed8;
+            border: 1px solid #93c5fd;
+            font-weight: 700;
+        }
+        .badge-swing-buy {
+            background: #faf5ff;
+            color: #7e22ce;
+            border: 1px solid #d8b4fe;
+            font-weight: 700;
+        }
+        .badge-swing-sell {
+            background: #fff7ed;
+            color: #c2410c;
+            border: 1px solid #fed7aa;
+            font-weight: 700;
+        }
+        .badge-swing-warn {
+            background: #fef2f2;
+            color: #b91c1c;
+            border: 1px solid #fecaca;
+            font-weight: 700;
+        }
+
+        /* 分點雙欄對照表格容器 */
+        .table-container {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 16px;
+        }
+        @media (max-width: 768px) {
+            .table-container {
+                grid-template-columns: 1fr;
+            }
+        }
+        .table-box {
+            background: #ffffff;
+            border: 1px solid var(--border);
+            border-radius: 10px;
+            overflow: hidden;
+        }
+        .table-header-title {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 10px 14px;
+            font-size: 0.92rem;
+            font-weight: 700;
+            border-bottom: 1px solid var(--border);
+        }
+        .buyer-title {
+            background: #fef2f2;
+            color: #b91c1c;
+        }
+        .seller-title {
+            background: #f0fdf4;
+            color: #15803d;
+        }
+
+        /* 關鍵核心主力分點動態雷達 (Smart Brokers Grid) */
+        .smart-brokers-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 16px;
+        }
+        @media (max-width: 768px) {
+            .smart-brokers-grid {
+                grid-template-columns: 1fr;
+            }
+        }
+        .sb-column {
+            background: #f8fafc;
+            border-radius: 10px;
+            padding: 16px;
+            border: 1px solid var(--border);
+        }
+        .sb-col-title {
+            font-size: 1.02rem;
+            font-weight: 700;
+            margin-bottom: 12px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            border-bottom: 1px solid var(--border);
+            padding-bottom: 8px;
+        }
+        .sb-list {
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+        .sb-item {
+            background: #ffffff;
+            padding: 10px 14px;
+            border-radius: 8px;
+            border: 1px solid #e2e8f0;
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.02);
+        }
+        .sb-item-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        .sb-item-name {
+            font-weight: 700;
+            font-size: 0.95rem;
+            color: #1e293b;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+        .sb-item-desc {
+            font-size: 0.84rem;
+            color: #64748b;
+        }
+        .sb-empty {
+            text-align: center;
+            color: #94a3b8;
+            font-size: 0.88rem;
+            padding: 20px 10px;
+        }
+
+        /* 1.2 集保股權巨細動態戰情室 (Dispersion Section) */
+        .disp-card {
+            background: #ffffff;
+            border-radius: 12px;
+            padding: 20px;
+            margin-bottom: 24px;
+            box-shadow: var(--shadow);
+            border: 1px solid var(--border);
+        }
+        .disp-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 16px;
+            border-bottom: 1px solid var(--border);
+            padding-bottom: 12px;
+        }
+        .disp-title {
+            font-size: 1.15rem;
+            font-weight: 700;
+            color: var(--text-main);
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        .disp-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 16px;
+            margin-bottom: 18px;
+        }
+        @media (max-width: 768px) {
+            .disp-grid {
+                grid-template-columns: 1fr;
+            }
+        }
+        .disp-col {
+            border-radius: 10px;
+            padding: 14px 18px;
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+        .disp-col-major {
+            background: #fff5f5;
+            border: 1px solid #fecaca;
+        }
+        .disp-col-retail {
+            background: #f0fdf4;
+            border: 1px solid #bbf7d0;
+        }
+        .disp-col-title {
+            font-size: 0.96rem;
+            font-weight: 700;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        .disp-major-title { color: #991b1b; }
+        .disp-retail-title { color: #166534; }
+        .disp-metrics-row {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 10px;
+            margin-top: 4px;
+        }
+        .disp-metric-item {
+            display: flex;
+            flex-direction: column;
+        }
+        .disp-m-label {
+            font-size: 0.78rem;
+            color: #64748b;
+        }
+        .disp-m-val {
+            font-size: 1.15rem;
+            font-weight: 700;
+            color: #0f172a;
+        }
+        .disp-m-diff {
+            font-size: 0.78rem;
+            font-weight: 600;
+            margin-left: 4px;
+        }
+        .disp-banner {
+            border-radius: 8px;
+            padding: 10px 14px;
+            font-size: 0.88rem;
+            font-weight: 600;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            margin-top: 14px;
+        }
+        .disp-banner-bull {
+            background: #fef2f2;
+            color: #991b1b;
+            border: 1px solid #fca5a5;
+        }
+        .disp-banner-bear {
+            background: #fefce8;
+            color: #854d0e;
+            border: 1px solid #fef08a;
+        }
+        .disp-banner-neutral {
+            background: #f1f5f9;
+            color: #334155;
+            border: 1px solid #cbd5e1;
+        }
+
+        /* ==================== 視覺語意高亮元件 (UI Enhancement) ==================== */
+        .hero-decision,
+        .hero-decision-card {
+            background: linear-gradient(135deg, #f8fafc 0%, #edf2f7 100%);
+            border: 1px solid #cbd5e1;
+            border-left: 6px solid var(--primary);
+            border-radius: 12px;
+            padding: 18px 22px;
+            margin-bottom: 24px;
+            box-shadow: 0 3px 12px rgba(0, 0, 0, 0.05);
+        }
+        .hero-decision.banner-bull {
+            background: linear-gradient(135deg, #fff5f5 0%, #fee2e2 100%);
+            border-color: #fca5a5;
+            border-left: 6px solid #dc2626;
+        }
+        .hero-decision.banner-caution {
+            background: linear-gradient(135deg, #fffbeb 0%, #fef3c7 100%);
+            border-color: #fcd34d;
+            border-left: 6px solid #d97706;
+        }
+        .hero-title,
+        .hero-decision-title {
+            font-size: 1.08rem;
+            font-weight: 800;
+            color: #0f172a;
+            margin-bottom: 8px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+        .hero-desc {
+            font-size: 0.94rem;
+            color: #334155;
+            line-height: 1.65;
+        }
+        .hero-decision-grid {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 12px;
+            text-align: center;
+        }
+        @media (max-width: 768px) {
+            .hero-decision-grid {
+                grid-template-columns: 1fr 1fr;
+            }
+        }
+        .hero-decision-item {
+            background: #ffffff;
+            padding: 10px 12px;
+            border-radius: 8px;
+            border: 1px solid #e2e8f0;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.03);
+        }
+        .hero-decision-lbl {
+            font-size: 0.78rem;
+            color: #64748b;
+            font-weight: 600;
+            margin-bottom: 4px;
+        }
+        .hero-decision-val {
+            font-size: 1.05rem;
+            font-weight: 800;
+        }
+
+        /* 文字內容與語意高亮標籤 */
+        .analysis-content {
+            font-size: 1.02rem;
+            color: #334155;
+            line-height: 1.85;
+        }
+        .analysis-content h2 {
+            color: #0f172a;
+            font-size: 1.35rem;
+            margin-top: 32px;
+            margin-bottom: 14px;
+            border-left: 4px solid var(--primary);
+            padding-left: 12px;
+        }
+        .analysis-content h3 {
+            color: #1e293b;
+            font-size: 1.15rem;
+            margin-top: 24px;
+            margin-bottom: 12px;
+        }
+        .analysis-content ul {
+            padding-left: 22px;
+        }
+        .analysis-content li {
+            margin-bottom: 10px;
+        }
+
+        /* 語意高亮膠囊 */
+        .broker-pill {
+            background: #e0f2fe;
+            color: #0369a1;
+            padding: 2px 7px;
+            border-radius: 6px;
+            font-weight: 600;
+            border: 1px solid #bae6fd;
+            display: inline-block;
+            margin: 0 2px;
+            font-size: 0.95em;
+        }
+        .price-pill {
+            background: #fef3c7;
+            color: #92400e;
+            padding: 1px 7px;
+            border-radius: 6px;
+            font-weight: 700;
+            border: 1px solid #fde68a;
+            display: inline-block;
+            margin: 0 2px;
+            font-family: monospace, sans-serif;
+            font-size: 0.96em;
+        }
+        .bullish-tag {
+            color: #dc2626;
+            font-weight: 700;
+            background: #fef2f2;
+            padding: 1px 5px;
+            border-radius: 4px;
+        }
+        .bearish-tag {
+            color: #16a34a;
+            font-weight: 700;
+            background: #f0fdf4;
+            padding: 1px 5px;
+            border-radius: 4px;
+        }
+        .val-pos {
+            color: #dc2626;
+            font-weight: 700;
+        }
+        .val-neg {
+            color: #16a34a;
+            font-weight: 700;
+        }
+        .alert-pill {
+            background: #fee2e2;
+            color: #b91c1c;
+            padding: 2px 6px;
+            border-radius: 4px;
+            font-weight: 700;
+            border: 1px solid #fca5a5;
+        }
+
+        /* 權威財經新聞與催化劑雷達 (Top 5) */
+        .news-resonance-banner {
+            padding: 12px 16px;
+            border-radius: 8px;
+            margin-bottom: 16px;
+            font-size: 0.92rem;
+            line-height: 1.5;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        .news-res-warn {
+            background: #fffbeb;
+            border: 1px solid #fde68a;
+            border-left: 4px solid #d97706;
+            color: #92400e;
+        }
+        .news-res-bull {
+            background: #fef2f2;
+            border: 1px solid #fecaca;
+            border-left: 4px solid #dc2626;
+            color: #991b1b;
+        }
+        .news-res-bear {
+            background: #f0fdf4;
+            border: 1px solid #bbf7d0;
+            border-left: 4px solid #16a34a;
+            color: #166534;
+        }
+        .news-res-neutral {
+            background: #f8fafc;
+            border: 1px solid #e2e8f0;
+            border-left: 4px solid #3b82f6;
+            color: #334155;
+        }
+        .news-list {
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+        .news-card {
+            display: flex;
+            align-items: flex-start;
+            justify-content: flex-start;
+            gap: 14px;
+            padding: 12px 16px;
+            border-radius: 10px;
+            background: #f8fafc;
+            border: 1px solid #e2e8f0;
+            transition: all 0.15s ease;
+        }
+        .news-card:hover {
+            background: #ffffff;
+            border-color: #cbd5e1;
+            box-shadow: 0 2px 8px rgba(15, 23, 42, 0.05);
+        }
+        .news-rank {
+            min-width: 28px;
+            height: 28px;
+            border-radius: 7px;
+            background: #1e293b;
+            color: #ffffff;
+            font-weight: 700;
+            font-size: 0.85rem;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin-top: 2px;
+            flex-shrink: 0;
+        }
+        .news-rank.top1 {
+            background: #dc2626;
+        }
+        .news-rank.top2 {
+            background: #2563eb;
+        }
+        .news-body {
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+            flex: 1;
+            min-width: 0;
+            text-align: left;
+        }
+        .news-title-link {
+            font-size: 0.98rem;
+            font-weight: 600;
+            color: #0f172a;
+            text-decoration: none;
+            line-height: 1.45;
+            text-align: left;
+            display: block;
+        }
+        .news-title-link:hover {
+            color: #2563eb;
+            text-decoration: underline;
+        }
+        .news-meta-row, .news-badges {
+            display: flex;
+            flex-wrap: wrap;
+            align-items: center;
+            gap: 8px;
+            text-align: left;
+        }
+        .news-badge {
+            font-size: 0.75rem;
+            font-weight: 600;
+            padding: 2px 8px;
+            border-radius: 5px;
+            display: inline-flex;
+            align-items: center;
+            gap: 4px;
+        }
+        .news-badge-stock, .nb-stock {
+            background: #eff6ff;
+            color: #1d4ed8;
+            border: 1px solid #bfdbfe;
+        }
+        .news-badge-macro, .nb-macro {
+            background: #f1f5f9;
+            color: #475569;
+            border: 1px solid #cbd5e1;
+        }
+        .news-badge-bull, .nb-bull {
+            background: #fef2f2;
+            color: #dc2626;
+            border: 1px solid #fecaca;
+        }
+        .news-badge-bear, .nb-bear {
+            background: #f0fdf4;
+            color: #15803d;
+            border: 1px solid #bbf7d0;
+        }
+        .news-badge-catalyst {
+            background: #fefce8;
+            color: #a16207;
+            border: 1px solid #fde047;
+        }
+        .news-badge-neutral, .nb-neutral {
+            background: #f8fafc;
+            color: #475569;
+            border: 1px solid #e2e8f0;
+        }
+        .news-badge-source, .news-source-tag {
+            font-size: 0.75rem;
+            font-weight: 600;
+            color: #0369a1;
+            background: #e0f2fe;
+            border: 1px solid #bae6fd;
+            padding: 2px 8px;
+            border-radius: 5px;
+        }
+        .news-time {
+            font-size: 0.78rem;
+            color: #64748b;
+            white-space: nowrap;
+            font-family: inherit;
+        }
+
+        .footer {
+            text-align: center;
+            font-size: 0.85rem;
+            color: var(--text-muted);
+            margin-top: 30px;
+            padding-bottom: 20px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <!-- 頂部股票基本資訊 -->
+        <div class="header-card">
+            <div class="header-title">
+                <h1>【6782 視陽】籌碼主力當日戰術快報 (Daily)</h1>
+                <div class="header-subtitle">
+                    <span class="mode-badge mode-daily">🌅 每日戰術快報</span>
+                    <span class="report-timestamp">🕒 產出時間：2026-11-27 10:40</span>
+                    <span class="sep">｜</span>
+                    <span>資料基準日：2026-11-27</span>
+                    <span class="sep">｜</span>
+                    <span>產業：Healthcare</span>
+                    <span class="sep">｜</span>
+                    <span>分析引擎：本地量化引擎 (Local 0-Token)</span>
+                </div>
+            </div>
+            <div class="price-badge">
+                <div class="price-label">當日收盤價</div>
+                <div class="price-val">306.5 元</div>
+            </div>
+        </div>
+
+        <!-- 頂部 3 個月 K 線圖與均線成交量 -->
+        
+        <div class="kline-card">
+            <div class="kline-header">
+                <div class="kline-title">
+                    <span>📈</span>
+                    <span>【6782 視陽】近 3 個月技術 K 線與均線成交量</span>
+                    <span class="kline-tags">
+                        <span class="k-tag k-ma5">● MA5</span>
+                        <span class="k-tag k-ma20">● MA20(月線)</span>
+                        <span class="k-tag k-ma60">● MA60(季線)</span>
+                    </span>
+                </div>
+                <div class="kline-note">
+                    紅漲 綠跌 ｜ 滾輪縮放 ｜ 移動游標查看逐日明細
+                </div>
+            </div>
+            <div id="kline_chart_6782_視陽" style="width: 100%; height: 320px;"></div>
+        </div>
+
+        <script>
+        (function() {
+            var chartDom = document.getElementById('kline_chart_6782_視陽');
+            if (!chartDom || typeof echarts === 'undefined') return;
+            var myChart = echarts.init(chartDom);
+
+            var dates = ["2026-08-27", "2026-08-28", "2026-08-31", "2026-09-01", "2026-09-02", "2026-09-03", "2026-09-04", "2026-09-07", "2026-09-08", "2026-09-09", "2026-09-10", "2026-09-11", "2026-09-14", "2026-09-15", "2026-09-16", "2026-09-17", "2026-09-18", "2026-09-21", "2026-09-22", "2026-09-23", "2026-09-24", "2026-09-29", "2026-09-30", "2026-10-01", "2026-10-02", "2026-10-05", "2026-10-06", "2026-10-07", "2026-10-08", "2026-10-12", "2026-10-13", "2026-10-14", "2026-10-15", "2026-10-16", "2026-10-19", "2026-10-20", "2026-10-21", "2026-10-22", "2026-10-23", "2026-10-27", "2026-10-28", "2026-10-29", "2026-10-30", "2026-11-02", "2026-11-03", "2026-11-04", "2026-11-05", "2026-11-06", "2026-11-09", "2026-11-10", "2026-11-11", "2026-11-12", "2026-11-13", "2026-11-16", "2026-11-17", "2026-11-18", "2026-11-19", "2026-11-20", "2026-11-23", "2026-11-24", "2026-11-25", "2026-11-26", "2026-11-27"];
+            var candles = [[245.0, 243.5, 240.5, 248.5], [242.5, 241.5, 234.0, 244.5], [241.5, 254.5, 239.0, 254.5], [254.0, 249.5, 247.0, 256.0], [248.5, 239.0, 238.0, 251.5], [240.0, 235.0, 232.0, 240.0], [236.0, 229.5, 228.0, 236.0], [228.5, 229.0, 224.5, 230.0], [230.0, 232.5, 228.0, 234.0], [235.5, 235.0, 228.5, 235.5], [235.0, 227.5, 227.5, 235.0], [227.0, 223.5, 220.5, 227.0], [221.5, 227.0, 219.5, 227.0], [222.5, 231.0, 222.5, 234.0], [230.0, 231.5, 227.5, 232.5], [235.0, 249.0, 232.5, 250.0], [250.0, 240.0, 238.0, 250.0], [241.0, 248.0, 234.5, 248.0], [248.0, 237.5, 237.5, 248.0], [240.0, 240.0, 235.0, 243.0], [237.5, 233.5, 232.0, 238.5], [231.0, 234.5, 230.5, 238.0], [237.0, 242.0, 236.5, 243.0], [242.0, 237.5, 236.0, 242.0], [236.5, 236.0, 232.0, 237.5], [236.5, 229.0, 228.5, 236.5], [231.5, 231.5, 229.0, 231.5], [231.0, 232.5, 229.5, 233.5], [232.5, 230.0, 229.0, 232.5], [234.0, 247.0, 234.0, 252.0], [242.0, 241.5, 238.5, 251.0], [242.0, 244.5, 240.5, 245.0], [247.0, 251.0, 243.0, 262.0], [251.0, 259.5, 250.0, 264.0], [260.0, 254.0, 251.0, 260.5], [251.0, 262.5, 251.0, 264.5], [262.5, 270.0, 256.5, 271.0], [271.0, 271.0, 265.0, 275.0], [271.0, 271.0, 271.0, 271.0], [271.0, 265.5, 262.0, 273.0], [266.5, 268.5, 263.5, 272.0], [267.5, 269.0, 263.0, 273.0], [268.0, 264.0, 261.0, 268.0], [263.5, 261.5, 260.0, 266.0], [263.0, 256.0, 252.5, 267.5], [258.0, 258.0, 249.0, 261.5], [260.5, 265.5, 257.0, 272.0], [239.0, 274.5, 239.0, 284.0], [289.0, 265.5, 265.0, 289.0], [270.5, 288.0, 269.5, 292.0], [296.0, 282.5, 276.0, 296.0], [286.0, 279.0, 277.5, 286.0], [278.5, 285.0, 278.0, 288.5], [287.5, 273.0, 273.0, 287.5], [265.5, 267.5, 261.5, 271.0], [266.5, 266.5, 255.0, 269.5], [282.5, 290.5, 282.5, 293.0], [283.5, 283.5, 282.0, 300.0], [269.0, 283.0, 269.0, 284.0], [298.0, 292.5, 290.0, 304.5], [298.0, 292.0, 290.0, 304.0], [288.5, 310.5, 287.5, 314.0], [315.0, 306.5, 303.0, 318.0]];
+            var volumes = [860, 1119, 1588, 915, 441, 530, 382, 308, 239, 360, 201, 250, 154, 189, 174, 792, 435, 303, 271, 267, 146, 127, 223, 239, 122, 211, 80, 168, 90, 820, 312, 165, 1167, 1027, 426, 692, 825, 899, 0, 529, 321, 328, 340, 353, 440, 397, 713, 1328, 629, 1191, 865, 352, 430, 293, 400, 529, 2113, 2411, 777, 1806, 966, 1093, 515];
+            var ma5 = [226.3, 234.2, 243.1, 247.0, 245.6, 243.9, 241.5, 236.4, 233.0, 232.2, 230.7, 229.5, 229.1, 228.8, 228.1, 232.4, 235.7, 239.9, 241.2, 242.9, 239.8, 238.7, 237.5, 237.5, 236.7, 235.8, 235.2, 233.3, 231.8, 234.0, 236.5, 239.1, 242.8, 248.7, 250.1, 254.3, 259.4, 263.4, 265.7, 268.0, 269.2, 269.0, 267.6, 265.7, 263.8, 261.7, 261.0, 263.1, 263.9, 270.3, 275.2, 277.9, 280.0, 281.5, 277.4, 274.2, 276.5, 276.2, 278.2, 283.2, 288.3, 292.3, 296.9];
+            var ma20 = [208.35, 211.2, 214.47, 217.45, 219.45, 220.9, 221.47, 222.22, 223.25, 224.62, 225.65, 226.7, 228.03, 229.65, 231.07, 233.32, 235.22, 237.12, 237.5, 237.2, 236.7, 236.35, 235.72, 235.12, 234.97, 234.68, 234.78, 234.95, 234.82, 235.43, 236.12, 237.18, 238.38, 239.8, 240.93, 241.6, 243.1, 244.25, 245.93, 247.2, 248.95, 250.68, 251.78, 252.97, 253.97, 255.43, 257.12, 259.23, 261.0, 263.05, 265.1, 266.82, 268.52, 269.2, 269.88, 270.07, 271.1, 271.73, 272.32, 273.68, 274.85, 276.93, 279.05];
+            var ma60 = [194.71, 195.61, 196.67, 197.63, 198.41, 199.2, 199.93, 200.69, 201.46, 202.32, 203.08, 203.77, 204.45, 205.15, 205.91, 206.96, 207.88, 208.99, 209.84, 210.71, 211.49, 212.22, 212.91, 213.55, 214.11, 214.63, 215.17, 215.82, 216.49, 217.4, 218.26, 219.25, 220.32, 221.54, 222.63, 223.93, 225.38, 226.82, 228.37, 229.84, 231.33, 232.74, 233.99, 235.18, 236.13, 237.0, 237.79, 238.8, 239.69, 241.03, 242.29, 243.57, 244.97, 246.22, 247.29, 248.33, 249.81, 251.03, 251.92, 252.69, 253.5, 254.65, 255.52];
+
+            var volData = volumes.map(function(val, idx) {
+                var c = candles[idx];
+                var isUp = c ? (c[1] >= c[0]) : true;
+                return {
+                    value: val,
+                    itemStyle: {
+                        color: isUp ? '#ef4444' : '#22c55e',
+                        borderColor: isUp ? '#ef4444' : '#22c55e'
+                    }
+                };
+            });
+
+            var option = {
+                animation: false,
+                tooltip: {
+                    trigger: 'axis',
+                    axisPointer: {
+                        type: 'cross',
+                        link: [{ xAxisIndex: 'all' }],
+                        label: { backgroundColor: '#334155' }
+                    },
+                    backgroundColor: 'rgba(15, 23, 42, 0.92)',
+                    borderColor: '#334155',
+                    textStyle: { color: '#ffffff', fontSize: 12 },
+                    formatter: function(params) {
+                        if (!params || !params.length) return '';
+                        var idx = params[0].dataIndex;
+                        var d = dates[idx];
+                        var c = candles[idx];
+                        if (!c) return '';
+                        var o = c[0], cl = c[1], l = c[2], h = c[3];
+                        var v = volumes[idx] || 0;
+                        var prevCl = (idx > 0 && candles[idx - 1]) ? candles[idx - 1][1] : o;
+                        var pct = prevCl > 0 ? ((cl - prevCl) / prevCl * 100).toFixed(2) : '0.00';
+                        var isUp = cl >= prevCl;
+                        var chgColor = isUp ? '#f87171' : '#4ade80';
+                        var sign = isUp ? '+' : '';
+
+                        var res = '<div style="font-weight:700; margin-bottom:4px; border-bottom:1px solid #475569; padding-bottom:3px;">' + d + '</div>';
+                        res += '開盤: <b>' + o + '</b> ｜ 最高: <b>' + h + '</b><br/>';
+                        res += '收盤: <b style="color:' + chgColor + '">' + cl + ' (' + sign + pct + '%)</b> ｜ 最低: <b>' + l + '</b><br/>';
+                        res += '成交量: <b>' + v.toLocaleString() + ' 張</b><br/>';
+                        
+                        var v5 = (ma5[idx] !== null && ma5[idx] !== undefined) ? ma5[idx] : '-';
+                        var v20 = (ma20[idx] !== null && ma20[idx] !== undefined) ? ma20[idx] : '-';
+                        var v60 = (ma60[idx] !== null && ma60[idx] !== undefined) ? ma60[idx] : '-';
+                        res += '<span style="color:#f59e0b">MA5: ' + v5 + '</span> ｜ <span style="color:#60a5fa">MA20: ' + v20 + '</span> ｜ <span style="color:#c084fc">MA60: ' + v60 + '</span>';
+                        return res;
+                    }
+                },
+                legend: {
+                    data: ['日K', 'MA5', 'MA20', 'MA60'],
+                    top: 0,
+                    right: 15,
+                    textStyle: { color: '#64748b', fontSize: 11 },
+                    itemWidth: 14,
+                    itemHeight: 8
+                },
+                grid: [
+                    { left: 52, right: 20, top: 26, height: '56%' },
+                    { left: 52, right: 20, top: '72%', height: '20%' }
+                ],
+                xAxis: [
+                    {
+                        type: 'category',
+                        data: dates,
+                        boundaryGap: true,
+                        axisLine: { lineStyle: { color: '#cbd5e1' } },
+                        splitLine: { show: false },
+                        axisLabel: { show: false }
+                    },
+                    {
+                        type: 'category',
+                        gridIndex: 1,
+                        data: dates,
+                        boundaryGap: true,
+                        axisLine: { lineStyle: { color: '#cbd5e1' } },
+                        axisTick: { show: false },
+                        splitLine: { show: false },
+                        axisLabel: {
+                            color: '#64748b',
+                            fontSize: 10,
+                            formatter: function(val) { return val.substring(5); }
+                        }
+                    }
+                ],
+                yAxis: [
+                    {
+                        scale: true,
+                        splitArea: { show: true, areaStyle: { color: ['rgba(248,250,252,0.5)', 'rgba(255,255,255,0.2)'] } },
+                        splitLine: { lineStyle: { color: '#f1f5f9' } },
+                        axisLabel: { color: '#64748b', fontSize: 11 }
+                    },
+                    {
+                        gridIndex: 1,
+                        scale: true,
+                        splitNumber: 2,
+                        splitLine: { show: false },
+                        axisLabel: {
+                            color: '#64748b',
+                            fontSize: 9,
+                            formatter: function(val) {
+                                return val >= 1000 ? (val / 1000).toFixed(0) + 'k' : val;
+                            }
+                        }
+                    }
+                ],
+                dataZoom: [
+                    {
+                        type: 'inside',
+                        xAxisIndex: [0, 1],
+                        start: 0,
+                        end: 100
+                    }
+                ],
+                series: [
+                    {
+                        name: '日K',
+                        type: 'candlestick',
+                        data: candles,
+                        itemStyle: {
+                            color: '#ef4444',
+                            color0: '#22c55e',
+                            borderColor: '#ef4444',
+                            borderColor0: '#22c55e'
+                        }
+                    },
+                    {
+                        name: 'MA5',
+                        type: 'line',
+                        data: ma5,
+                        smooth: true,
+                        showSymbol: false,
+                        lineStyle: { width: 1.2, color: '#f59e0b' }
+                    },
+                    {
+                        name: 'MA20',
+                        type: 'line',
+                        data: ma20,
+                        smooth: true,
+                        showSymbol: false,
+                        lineStyle: { width: 1.2, color: '#2563eb' }
+                    },
+                    {
+                        name: 'MA60',
+                        type: 'line',
+                        data: ma60,
+                        smooth: true,
+                        showSymbol: false,
+                        lineStyle: { width: 1.2, color: '#9333ea' }
+                    },
+                    {
+                        name: '成交量',
+                        type: 'bar',
+                        xAxisIndex: 1,
+                        yAxisIndex: 1,
+                        data: volData
+                    }
+                ]
+            };
+
+            myChart.setOption(option);
+            window.addEventListener('resize', function() {
+                myChart.resize();
+            });
+        })();
+        </script>
+        
+
+        <!-- 0. 宏觀籌碼看板 (日報 2欄 / 週報 4欄) -->
+        <div class="radar-grid">
+            
+            <div class="radar-card">
+                <div class="radar-card-title">🏛️ 三大法人單日買賣超</div>
+                <div class="radar-items">
+                    <div class="radar-item">
+                        <div class="radar-label">外資</div>
+                        <div class="radar-val val-red">+29 張</div>
+                    </div>
+                    <div class="radar-item">
+                        <div class="radar-label">投信</div>
+                        <div class="radar-val val-red">+0 張</div>
+                    </div>
+                    <div class="radar-item">
+                        <div class="radar-label">自營商</div>
+                        <div class="radar-val val-green">-6 張</div>
+                    </div>
+                    <div class="radar-item">
+                        <div class="radar-label">法人合計</div>
+                        <div class="radar-val val-red">+23 張</div>
+                    </div>
+                    <div class="radar-item">
+                        <div class="radar-label">外資持股比</div>
+                        <div class="radar-val">14.28%</div>
+                    </div>
+                    <div class="radar-item">
+                        <div class="radar-label">法人總持股</div>
+                        <div class="radar-val">16.17%</div>
+                    </div>
+                </div>
+            </div>
+        
+
+            <div class="radar-card">
+                <div class="radar-card-title">🏛️ 八大官股與國家隊/代操動態</div>
+                <div class="radar-items">
+                    <div class="radar-item">
+                        <div class="radar-label">官股單日買賣超</div>
+                        <div class="radar-val val-green">-27 張</div>
+                    </div>
+                    <div class="radar-item">
+                        <div class="radar-label">官股近5日累計</div>
+                        <div class="radar-val val-green">-8 張</div>
+                    </div>
+                    <div class="radar-item">
+                        <div class="radar-label">官股態度評級</div>
+                        <div class="radar-val" style="font-size:0.83rem;">🟠 官股逢高調節</div>
+                    </div>
+                    <div class="radar-item">
+                        <div class="radar-label">代操單日買賣超</div>
+                        <div class="radar-val val-red">+29 張</div>
+                    </div>
+                    <div class="radar-item">
+                        <div class="radar-label">代操近5日累計</div>
+                        <div class="radar-val val-red">+250 張</div>
+                    </div>
+                    <div class="radar-item">
+                        <div class="radar-label">代操鎖碼評級</div>
+                        <div class="radar-val" style="font-size:0.83rem;">🔥 代操波段重倉鎖碼</div>
+                    </div>
+                </div>
+            </div>
+        
+
+            <div class="radar-card">
+                <div class="radar-card-title">📈 融資融券散戶動態</div>
+                <div class="radar-items">
+                    <div class="radar-item">
+                        <div class="radar-label">融資餘額</div>
+                        <div class="radar-val">332 張</div>
+                    </div>
+                    <div class="radar-item">
+                        <div class="radar-label">融資增減</div>
+                        <div class="radar-val val-red">+46 張</div>
+                    </div>
+                    <div class="radar-item">
+                        <div class="radar-label">融券餘額</div>
+                        <div class="radar-val">1 張</div>
+                    </div>
+                    <div class="radar-item">
+                        <div class="radar-label">融券增減</div>
+                        <div class="radar-val val-red">+0 張</div>
+                    </div>
+                    <div class="radar-item">
+                        <div class="radar-label">券資比</div>
+                        <div class="radar-val">0.30%</div>
+                    </div>
+                    <div class="radar-item">
+                        <div class="radar-label">籌碼沉澱訊號</div>
+                        <div class="radar-val" style="font-size:0.85rem;">中性觀望</div>
+                    </div>
+                </div>
+            </div>
+        
+
+            <div class="radar-card">
+                <div class="radar-card-title">⚡ 技術面均線與量能共振</div>
+                <div class="radar-items">
+                    <div class="radar-item">
+                        <div class="radar-label">均線型態</div>
+                        <div class="radar-val val-red" style="font-weight:700;">👑 三線多頭排列</div>
+                    </div>
+                    <div class="radar-item">
+                        <div class="radar-label">成交放量比 (vs 5MA量)</div>
+                        <div class="radar-val ">0.50 倍 (量縮整理)</div>
+                    </div>
+                    <div class="radar-item">
+                        <div class="radar-label">5MA / 20MA (月線)</div>
+                        <div class="radar-val">296.9 / 279.05 元</div>
+                    </div>
+                    <div class="radar-item">
+                        <div class="radar-label">60MA (季線生命線)</div>
+                        <div class="radar-val">255.52 元</div>
+                    </div>
+                    <div class="radar-item">
+                        <div class="radar-label">20MA 月線斜率</div>
+                        <div class="radar-val val-red">↗️ 翻揚助漲</div>
+                    </div>
+                    <div class="radar-item">
+                        <div class="radar-label">當日成交張數</div>
+                        <div class="radar-val">515 張</div>
+                    </div>
+                </div>
+            </div>
+        
+        </div>
+
+        <div class="macro-alert-box">🎯 【1年認證賣頂高手出貨】過去1年 8 度精準賣頂之「統一-桃園」(勝率 80%、正價差 +22.8%)，近5日再度連賣 21 張 (今日 -1 張)，嚴防高檔見頂賣壓！<br>🎯 【1年認證賣頂高手出貨】過去1年 4 度精準賣頂之「富邦-中壢」(勝率 100%、正價差 +16.8%)，近5日再度連賣 55 張 (今日 +0 張)，嚴防高檔見頂賣壓！<br>🎯 【1年認證賣頂高手出貨】過去1年 3 度精準賣頂之「元大-板橋」(勝率 100%、正價差 +13.5%)，近5日再度連賣 26 張 (今日 +0 張)，嚴防高檔見頂賣壓！<br>🔥 【集保籌碼極度沉澱】最新一週 >200張大戶加碼 +0.67% (佔 67.1%) ✕ <10張散戶浮額退場 -0.71% (人數 -253 人)，籌碼高度鎖定！<br>🏛️ 【八大官股逢高調節】官股分點今日順勢調節 -27 張 (近5日累計 -8 張)，符合官方逆勢不追高慣性。<br>💼 【代操機構波段重倉】總公司/委外代操席位近5日累計淨買超 +250 張 (近20日累計 +1,353 張)，籌碼展現高度穩定度！<br>📊 【三線多頭排列】均線呈多頭排列架構 (現價>5MA>20MA>60MA)，多方控盤整理中。</div>
+
+        <!-- 1. 多週期量化指標矩陣看板 -->
+        <div class="section-card">
+            <div class="section-title">⚡ 當日與短線 (1日 / 5日) 主力加權成本與集中度矩陣</div>
+            <table class="matrix-table">
+                <thead>
+                    <tr>
+                        <th>週期</th>
+                        <th>主力買超均價 (VWAP)</th>
+                        <th>現價乖離率</th>
+                        <th>前 5 大買方佔比</th>
+                        <th>前 5 大賣方佔比</th>
+                        <th>淨集中度 (買-賣)</th>
+                        <th>狀態備註</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    
+            <tr>
+                <td><strong>1 日</strong></td>
+                <td>310.01 元</td>
+                <td class="val-green">-1.13%</td>
+                <td>18.02%</td>
+                <td>12.99%</td>
+                <td class="val-red">+5.03%</td>
+                <td></td>
+            </tr>
+            
+            <tr>
+                <td><strong>5 日</strong></td>
+                <td>295.36 元</td>
+                <td class="val-red">+3.77%</td>
+                <td>12.33%</td>
+                <td>6.27%</td>
+                <td class="val-red">+6.06%</td>
+                <td></td>
+            </tr>
+            
+                </tbody>
+            </table>
+        </div>
+
+        <!-- 1.2 集保股權巨細動態：主力大戶(>200張) ✕ 散戶(<10張) 6個月趨勢戰情室 -->
+        
+        <div class="disp-card">
+            <div class="disp-header">
+                <div class="disp-title">
+                    <span>🏛️</span>
+                    <span>集保股權巨細動態：主力大戶(>200張) ✕ 散戶(<10張) 6個月趨勢戰情室</span>
+                </div>
+                <div style="font-size:0.84rem; color:var(--text-muted);">
+                    基準週：<strong>2026-11-20</strong> ｜ 每週五盤後更新
+                </div>
+            </div>
+
+            <!-- 1. 雙欄巨細數據對照卡 -->
+            <div class="disp-grid">
+                <div class="disp-col disp-col-major">
+                    <div class="disp-col-title">
+                        <span class="disp-major-title">🔴 【主力大戶 (>200張)】 高度鎖碼看板</span>
+                        <span style="font-size:0.82rem; font-weight:600; color:#dc2626;">週增減 +0.67%</span>
+                    </div>
+                    <div class="disp-metrics-row">
+                        <div class="disp-metric-item">
+                            <span class="disp-m-label">持股比例</span>
+                            <span class="disp-m-val">67.10%</span>
+                        </div>
+                        <div class="disp-metric-item">
+                            <span class="disp-m-label">大戶人數 (週增減)</span>
+                            <span class="disp-m-val">51 <small style="font-size:0.75rem; color:#dc2626;">(+0)</small></span>
+                        </div>
+                        <div class="disp-metric-item">
+                            <span class="disp-m-label">人均持股</span>
+                            <span class="disp-m-val">828.9 <small style="font-size:0.75rem; color:#64748b;">張/人</small></span>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="disp-col disp-col-retail">
+                    <div class="disp-col-title">
+                        <span class="disp-retail-title">🟢 【純散戶 (<10張)】 浮額清洗看板</span>
+                        <span style="font-size:0.82rem; font-weight:600; color:#16a34a;">週增減 -0.71%</span>
+                    </div>
+                    <div class="disp-metrics-row">
+                        <div class="disp-metric-item">
+                            <span class="disp-m-label">持股比例</span>
+                            <span class="disp-m-val">7.42%</span>
+                        </div>
+                        <div class="disp-metric-item">
+                            <span class="disp-m-label">散戶人數 (週增減)</span>
+                            <span class="disp-m-val">5,273 <small style="font-size:0.75rem; color:#16a34a;">(-253)</small></span>
+                        </div>
+                        <div class="disp-metric-item">
+                            <span class="disp-m-label">人均持股</span>
+                            <span class="disp-m-val">0.89 <small style="font-size:0.75rem; color:#64748b;">張/人</small></span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 2. 6 個月多軸 ECharts 互動趨勢圖 (持股比 ✕ 收盤價 ✕ 大戶散戶人數) -->
+            <div id="dispersion_chart_6782_視陽" style="width: 100%; height: 390px;"></div>
+
+            <!-- 3. 籌碼結構診斷條 -->
+            <div class="disp-banner disp-banner-bull">
+                <span>🔥</span>
+                <div><strong>【籌碼極度沉澱】大戶鎖碼 ✕ 散戶退場</strong>：>200張主力大戶本週加碼 +0.67% ✕ <10張散戶浮額退場 -0.71% (散戶人數減少 253 人)！籌碼向少數特定強手高度集中，多方波段底氣深厚。</div>
+            </div>
+        </div>
+
+        <script>
+        (function() {
+            var chartDom = document.getElementById('dispersion_chart_6782_視陽');
+            if (!chartDom || typeof echarts === 'undefined') return;
+            var myChart = echarts.init(chartDom);
+
+            var dates = ["2026-05-29", "2026-06-05", "2026-06-12", "2026-06-18", "2026-06-26", "2026-07-03", "2026-07-09", "2026-07-17", "2026-07-24", "2026-07-31", "2026-08-07", "2026-08-14", "2026-08-21", "2026-08-28", "2026-09-04", "2026-09-11", "2026-09-18", "2026-09-24", "2026-10-02", "2026-10-08", "2026-10-16", "2026-10-22", "2026-10-30", "2026-11-06", "2026-11-13", "2026-11-20"];
+            var over200 = [59.03, 58.58, 58.8, 58.77, 58.97, 59.68, 60.55, 60.28, 59.92, 59.82, 60.95, 60.67, 60.68, 64.16, 65.58, 65.32, 64.73, 64.87, 64.44, 64.9, 66.0, 66.09, 65.92, 66.08, 66.43, 67.1];
+            var under10 = [13.58, 13.35, 13.4, 13.47, 13.4, 13.18, 12.48, 12.48, 12.8, 12.92, 12.11, 11.35, 11.48, 10.06, 9.4, 9.53, 9.37, 9.51, 9.48, 9.55, 9.13, 8.61, 8.47, 8.21, 8.13, 7.42];
+            var prices = [193.0, 200.5, 194.5, 194.5, 190.0, 209.5, 208.0, 193.0, 183.0, 184.5, 218.0, 202.5, 202.0, 241.5, 229.5, 223.5, 240.0, 233.5, 236.0, 230.0, 259.5, 271.0, 264.0, 274.5, 285.0, 283.5];
+            var over200Cnt = [49, 48, 48, 47, 48, 49, 52, 50, 50, 51, 51, 50, 50, 55, 53, 54, 52, 53, 52, 52, 54, 52, 49, 50, 51, 51];
+            var under10Cnt = [7227, 7123, 7127, 7156, 7134, 7036, 6871, 6867, 6979, 6991, 6740, 6505, 6514, 6121, 5863, 5915, 5852, 5852, 5821, 5840, 5790, 5644, 5519, 5447, 5526, 5273];
+
+            var allPcts = over200.concat(under10).filter(function(v) { return v !== null && !isNaN(v); });
+            var minPct = allPcts.length ? Math.max(0, Math.floor(Math.min.apply(null, allPcts) - 2)) : 0;
+            var maxPct = allPcts.length ? Math.min(100, Math.ceil(Math.max.apply(null, allPcts) + 2)) : 100;
+
+            var option = {
+                backgroundColor: 'transparent',
+                animationDuration: 600,
+                tooltip: {
+                    trigger: 'axis',
+                    backgroundColor: 'rgba(15, 23, 42, 0.94)',
+                    borderColor: '#334155',
+                    textStyle: { color: '#f8fafc', fontSize: 12 },
+                    formatter: function(params) {
+                        if (!params || !params.length) return '';
+                        var html = '<div style="font-weight:700;margin-bottom:6px;border-bottom:1px solid #475569;padding-bottom:4px;">📅 ' + params[0].axisValue + '</div>';
+                        var priceVal = 0, o200Val = 0, u10Val = 0;
+                        params.forEach(function(item) {
+                            var valStr = item.value !== undefined ? item.value : '-';
+                            if (item.seriesName.indexOf('大戶持股比') !== -1) {
+                                o200Val = item.value;
+                                html += '<div style="display:flex;justify-content:space-between;gap:14px;color:#fca5a5;"><span>' + item.marker + ' >200張大戶比:</span><b>' + valStr + '%</b></div>';
+                            } else if (item.seriesName.indexOf('散戶持股比') !== -1) {
+                                u10Val = item.value;
+                                html += '<div style="display:flex;justify-content:space-between;gap:14px;color:#86efac;"><span>' + item.marker + ' <10張散戶比:</span><b>' + valStr + '%</b></div>';
+                            } else if (item.seriesName.indexOf('收盤價') !== -1) {
+                                priceVal = item.value;
+                                html += '<div style="display:flex;justify-content:space-between;gap:14px;color:#93c5fd;"><span>' + item.marker + ' 週收盤價:</span><b>' + valStr + ' 元</b></div>';
+                            } else if (item.seriesName.indexOf('大戶人數') !== -1) {
+                                var cntFmt = typeof valStr === 'number' ? valStr.toLocaleString() : valStr;
+                                html += '<div style="display:flex;justify-content:space-between;gap:14px;color:#fdba74;"><span>' + item.marker + ' 大戶人數:</span><b>' + cntFmt + ' 人</b></div>';
+                            } else if (item.seriesName.indexOf('散戶人數') !== -1) {
+                                var cntFmt = typeof valStr === 'number' ? valStr.toLocaleString() : valStr;
+                                html += '<div style="display:flex;justify-content:space-between;gap:14px;color:#d8b4fe;"><span>' + item.marker + ' 散戶人數:</span><b>' + cntFmt + ' 人</b></div>';
+                            }
+                        });
+                        if (o200Val > 0 && u10Val > 0) {
+                            var gap = (o200Val - u10Val).toFixed(2);
+                            html += '<div style="margin-top:5px;padding-top:4px;border-top:1px dashed #475569;color:#e2e8f0;font-size:11px;">主力散戶淨差: <b>+' + gap + '%</b></div>';
+                        }
+                        return html;
+                    }
+                },
+                legend: {
+                    data: ['>200張主力大戶持股比', '<10張純散戶持股比', '週收盤價', '>200張大戶人數', '<10張散戶人數'],
+                    top: 0,
+                    textStyle: { color: '#475569', fontSize: 12 }
+                },
+                grid: {
+                    left: '2%',
+                    right: '2%',
+                    bottom: '6%',
+                    top: '15%',
+                    containLabel: true
+                },
+                xAxis: {
+                    type: 'category',
+                    data: dates,
+                    axisLine: { lineStyle: { color: '#cbd5e1' } },
+                    axisLabel: { color: '#64748b', fontSize: 11 }
+                },
+                yAxis: [
+                    {
+                        type: 'value',
+                        name: '持股比 (%)',
+                        position: 'left',
+                        min: minPct,
+                        max: maxPct,
+                        axisLabel: { formatter: '{value}%', color: '#dc2626' },
+                        axisLine: { show: true, lineStyle: { color: '#dc2626' } },
+                        splitLine: { lineStyle: { color: '#f1f5f9' } }
+                    },
+                    {
+                        type: 'value',
+                        name: '收盤價 (元)',
+                        position: 'right',
+                        scale: true,
+                        splitLine: { show: false },
+                        axisLine: { show: true, lineStyle: { color: '#2563eb' } },
+                        axisLabel: { formatter: '{value}元', color: '#2563eb' }
+                    },
+                    {
+                        type: 'value',
+                        name: '大戶人數 (人)',
+                        position: 'left',
+                        offset: 48,
+                        scale: true,
+                        splitLine: { show: false },
+                        axisLine: { show: true, lineStyle: { color: '#ea580c' } },
+                        axisLabel: { formatter: '{value}人', color: '#ea580c' }
+                    },
+                    {
+                        type: 'value',
+                        name: '散戶人數 (人)',
+                        position: 'right',
+                        offset: 50,
+                        scale: true,
+                        splitLine: { show: false },
+                        axisLine: { show: true, lineStyle: { color: '#7c3aed' } },
+                        axisLabel: { formatter: '{value}人', color: '#7c3aed' }
+                    }
+                ],
+                series: [
+                    {
+                        name: '>200張主力大戶持股比',
+                        type: 'line',
+                        yAxisIndex: 0,
+                        smooth: true,
+                        symbol: 'circle',
+                        symbolSize: 6,
+                        lineStyle: { width: 2.8, color: '#dc2626' },
+                        itemStyle: { color: '#dc2626' },
+                        data: over200
+                    },
+                    {
+                        name: '<10張純散戶持股比',
+                        type: 'line',
+                        yAxisIndex: 0,
+                        smooth: true,
+                        symbol: 'rect',
+                        symbolSize: 6,
+                        lineStyle: { width: 2.2, color: '#16a34a', type: 'dashed' },
+                        itemStyle: { color: '#16a34a' },
+                        data: under10
+                    },
+                    {
+                        name: '週收盤價',
+                        type: 'line',
+                        yAxisIndex: 1,
+                        smooth: true,
+                        symbol: 'none',
+                        lineStyle: { width: 1.8, color: '#2563eb' },
+                        areaStyle: {
+                            color: new echarts.graphic.LinearGradient(0, 0, 0, 1, [
+                                { offset: 0, color: 'rgba(37, 99, 235, 0.20)' },
+                                { offset: 1, color: 'rgba(37, 99, 235, 0.01)' }
+                            ])
+                        },
+                        itemStyle: { color: '#2563eb' },
+                        data: prices
+                    },
+                    {
+                        name: '>200張大戶人數',
+                        type: 'line',
+                        yAxisIndex: 2,
+                        smooth: true,
+                        symbol: 'diamond',
+                        symbolSize: 7,
+                        lineStyle: { width: 2, color: '#ea580c', type: 'dotted' },
+                        itemStyle: { color: '#ea580c' },
+                        data: over200Cnt
+                    },
+                    {
+                        name: '<10張散戶人數',
+                        type: 'line',
+                        yAxisIndex: 3,
+                        smooth: true,
+                        symbol: 'triangle',
+                        symbolSize: 6,
+                        lineStyle: { width: 2, color: '#7c3aed' },
+                        itemStyle: { color: '#7c3aed' },
+                        data: under10Cnt
+                    }
+                ]
+            };
+
+            myChart.setOption(option);
+            window.addEventListener('resize', function() {
+                myChart.resize();
+            });
+        })();
+        </script>
+        
+
+        <!-- 1.5 關鍵核心主力分點動態雷達 (長線囤貨大戶 ✕ 波段神算高手) -->
+        
+        <div class="section-card">
+            <div class="section-title">🌟 關鍵核心主力分點動態雷達 (長線囤貨大戶 ✕ 1年歷史認證波段高手)</div>
+            <div class="smart-brokers-grid">
+                <div class="sb-column">
+                    <div class="sb-col-title">
+                        <span>🔒 長線囤貨大戶 (中長期鎖碼底氣)</span>
+                        <span style="font-size:0.8rem;color:var(--text-muted);font-weight:normal;">120~240日囤貨純度高</span>
+                    </div>
+                    <div class="sb-list">
+                        
+                <div class="sb-item">
+                    <div class="sb-item-header">
+                        <div class="sb-item-name">
+                            <span>🏢 富邦證券</span>
+                            <span class="badge badge-hoarder">🔒長線囤貨</span>
+                            <span class="badge badge-disc" style="margin-left:4px;">💼代操鎖碼</span>
+                        </div>
+                        <div style="font-size:0.85rem;font-weight:700;color:#dc2626;">
+                            純度 88.7%
+                        </div>
+                    </div>
+                    <div class="sb-item-desc">
+                        240日淨買入 <strong>+2,168 張</strong> (佔比 <strong>2.24%</strong>) ｜ <span style="color:#2563eb;font-weight:600;font-size:0.78rem;">● 跨週期持續鎖碼</span>
+                    </div>
+                </div>
+                
+                <div class="sb-item">
+                    <div class="sb-item-header">
+                        <div class="sb-item-name">
+                            <span>🏢 美商高盛</span>
+                            <span class="badge badge-hoarder">🔒長線囤貨</span>
+                            <span class="badge badge-disc" style="margin-left:4px;">💼代操鎖碼</span>
+                        </div>
+                        <div style="font-size:0.85rem;font-weight:700;color:#2563eb;">
+                            純度 53.0%
+                        </div>
+                    </div>
+                    <div class="sb-item-desc">
+                        240日淨買入 <strong>+868 張</strong> (佔比 <strong>0.90%</strong>) ｜ <span style="color:#2563eb;font-weight:600;font-size:0.78rem;">● 跨週期持續鎖碼</span>
+                    </div>
+                </div>
+                
+                <div class="sb-item">
+                    <div class="sb-item-header">
+                        <div class="sb-item-name">
+                            <span>🏢 統一</span>
+                            <span class="badge badge-hoarder">🔒長線囤貨</span>
+                            
+                        </div>
+                        <div style="font-size:0.85rem;font-weight:700;color:#2563eb;">
+                            純度 77.3%
+                        </div>
+                    </div>
+                    <div class="sb-item-desc">
+                        240日淨買入 <strong>+863 張</strong> (佔比 <strong>0.89%</strong>) ｜ <span style="color:#2563eb;font-weight:600;font-size:0.78rem;">● 跨週期持續鎖碼</span>
+                    </div>
+                </div>
+                
+                <div class="sb-item">
+                    <div class="sb-item-header">
+                        <div class="sb-item-name">
+                            <span>🏢 永豐金證券</span>
+                            <span class="badge badge-hoarder">🔒長線囤貨</span>
+                            
+                        </div>
+                        <div style="font-size:0.85rem;font-weight:700;color:#2563eb;">
+                            純度 61.3%
+                        </div>
+                    </div>
+                    <div class="sb-item-desc">
+                        240日淨買入 <strong>+847 張</strong> (佔比 <strong>0.88%</strong>) ｜ <span style="color:#2563eb;font-weight:600;font-size:0.78rem;">● 跨週期持續鎖碼</span>
+                    </div>
+                </div>
+                
+                <div class="sb-item">
+                    <div class="sb-item-header">
+                        <div class="sb-item-name">
+                            <span>🏢 台灣摩根士丹利</span>
+                            <span class="badge badge-hoarder">🔒長線囤貨</span>
+                            <span class="badge badge-disc" style="margin-left:4px;">💼代操鎖碼</span>
+                        </div>
+                        <div style="font-size:0.85rem;font-weight:700;color:#2563eb;">
+                            純度 53.7%
+                        </div>
+                    </div>
+                    <div class="sb-item-desc">
+                        120日淨買入 <strong>+712 張</strong> (佔比 <strong>1.22%</strong>) ｜ <span style="color:#64748b;font-size:0.78rem;">● 獨立波段囤貨</span>
+                    </div>
+                </div>
+                
+                    </div>
+                </div>
+                <div class="sb-column">
+                    <div class="sb-col-title">
+                        <span>🎯 波段神算高手 (1年期逐日帳本回測認證)</span>
+                        <span style="font-size:0.8rem;color:var(--text-muted);font-weight:normal;">歷史波段轉折勝率 ✕ 本波最新動態</span>
+                    </div>
+                    <div class="sb-list">
+                        
+                <div class="sb-item">
+                    <div class="sb-item-header">
+                        <div class="sb-item-name">
+                            <span>🏢 統一-桃園</span>
+                            <span class="badge badge-swing-sell">🎯波段賣頂</span>
+                            
+                        </div>
+                        <div style="font-size:0.85rem;font-weight:700;color:#dc2626;">
+                            1年賣頂勝率 80%｜正價差 +22.8%
+                        </div>
+                    </div>
+                    <div class="sb-item-desc">
+                        <div><strong>① 1年回測基因</strong>：過去1年 <strong>8 度</strong>精準於波段高點大賣 (高檔狙擊率 <strong>94%</strong>、賣後回檔勝率 <strong>80%</strong>)，1年買均 <strong>191.0元</strong> ➔ 賣均 <strong>234.6元</strong> (正價差 <strong style='color:#dc2626;'>+43.6元 / +22.8%</strong>)</div><div style='margin-top:3px;'><strong>② 歷史波段實績</strong>：低檔 07-22~07-28 均價 184.69元 抄底 +81張 (後20日漲 +29.8%) ➔ 高檔 10-12~10-28 均價 256.79元 (最高 271元) 賣出 -198張 (波段回檔 -12.0%)</div><div style='margin-top:3px;'><span style='color:#dc2626;font-weight:700;'>🚨 本波最新動態：近5日(11-23~11-27)於 283~310.5元 再度密集賣超 -21張 (今日 -1張)，重現歷史高勝率賣頂訊號！</span></div><div style='margin-top:4px;padding:4px 8px;background:#f8fafc;border-left:3px solid #6366f1;font-size:0.8rem;color:#334155;'>🔍 邏輯驗證覆盤：累計 14 次歷史訊號驗證中，直接命中 9 次、左側提早出手(先逆風後應驗) 4 次、失準 1 次 (綜合波段勝率 93%)；操作上常提前 3~5 日左側分批布局或調節。</div>
+                    </div>
+                </div>
+                
+                <div class="sb-item">
+                    <div class="sb-item-header">
+                        <div class="sb-item-name">
+                            <span>🏢 富邦-中壢</span>
+                            <span class="badge badge-swing-sell">🎯波段賣頂</span>
+                            
+                        </div>
+                        <div style="font-size:0.85rem;font-weight:700;color:#dc2626;">
+                            1年賣頂勝率 100%｜正價差 +16.8%
+                        </div>
+                    </div>
+                    <div class="sb-item-desc">
+                        <div><strong>① 1年回測基因</strong>：過去1年 <strong>4 度</strong>精準於波段高點大賣 (高檔狙擊率 <strong>100%</strong>、賣後回檔勝率 <strong>100%</strong>)，1年買均 <strong>206.9元</strong> ➔ 賣均 <strong>241.8元</strong> (正價差 <strong style='color:#dc2626;'>+34.8元 / +16.8%</strong>)</div><div style='margin-top:3px;'><strong>② 歷史波段實績</strong>：高檔 11-06~11-10 均價 278.42元 (最高 288元) 賣出 -31張 (波段回檔 -11.5%)</div><div style='margin-top:3px;'><span style='color:#dc2626;font-weight:700;'>🚨 本波最新動態：近5日(11-23~11-27)於 283~310.5元 再度密集賣超 -55張 (今日 +0張)，重現歷史高勝率賣頂訊號！</span></div><div style='margin-top:4px;padding:4px 8px;background:#f8fafc;border-left:3px solid #6366f1;font-size:0.8rem;color:#334155;'>🔍 邏輯驗證覆盤：累計 4 次歷史轉折訊號驗證中，成功應驗 4 次 (實戰勝率 100%)，訊號穩定度高。</div>
+                    </div>
+                </div>
+                
+                <div class="sb-item">
+                    <div class="sb-item-header">
+                        <div class="sb-item-name">
+                            <span>🏢 富邦-台中</span>
+                            <span class="badge badge-swing-sell">🎯高檔了結</span>
+                            
+                        </div>
+                        <div style="font-size:0.85rem;font-weight:700;color:#c2410c;">
+                            1年賣頂勝率 50%｜正價差 +17.9%
+                        </div>
+                    </div>
+                    <div class="sb-item-desc">
+                        <div><strong>① 1年回測基因</strong>：過去1年 <strong>2 度</strong>精準於波段高點大賣 (高檔狙擊率 <strong>100%</strong>、賣後回檔勝率 <strong>50%</strong>)，1年買均 <strong>230.5元</strong> ➔ 賣均 <strong>271.8元</strong> (正價差 <strong style='color:#dc2626;'>+41.3元 / +17.9%</strong>)</div><div style='margin-top:3px;'><strong>② 歷史波段實績</strong>：高檔 11-02~11-20 均價 280.22元 (最高 290.5元) 賣出 -418張 (波段回檔 -17.7%)</div><div style='margin-top:3px;'><span style='color:#64748b;'>⏳ 本波最新動態：近5日(11-23~11-27)累計 +0張 (今日 +0張)，目前按兵不動，常駐監控下次關鍵轉折出手訊號。</span></div><div style='margin-top:4px;padding:4px 8px;background:#f8fafc;border-left:3px solid #6366f1;font-size:0.8rem;color:#334155;'>🔍 邏輯驗證覆盤：累計 2 次歷史轉折訊號驗證中，成功應驗 1 次 (實戰勝率 50%)，訊號穩定度高。</div>
+                    </div>
+                </div>
+                
+                <div class="sb-item">
+                    <div class="sb-item-header">
+                        <div class="sb-item-name">
+                            <span>🏢 國票-台中</span>
+                            <span class="badge badge-swing-sell">🎯高檔了結</span>
+                            
+                        </div>
+                        <div style="font-size:0.85rem;font-weight:700;color:#c2410c;">
+                            1年賣頂勝率 73%｜正價差 +12.3%
+                        </div>
+                    </div>
+                    <div class="sb-item-desc">
+                        <div><strong>① 1年回測基因</strong>：過去1年 <strong>9 度</strong>精準於波段高點大賣 (高檔狙擊率 <strong>88%</strong>、賣後回檔勝率 <strong>73%</strong>)，1年買均 <strong>200.7元</strong> ➔ 賣均 <strong>225.3元</strong> (正價差 <strong style='color:#dc2626;'>+24.6元 / +12.3%</strong>)</div><div style='margin-top:3px;'><strong>② 歷史波段實績</strong>：高檔 11-02~11-10 均價 275.23元 (最高 288元) 賣出 -80張 (波段回檔 -17.0%)</div><div style='margin-top:3px;'><span style='color:#64748b;'>⏳ 本波最新動態：近5日(11-23~11-27)累計 -6張 (今日 -2張)，目前按兵不動，常駐監控下次關鍵轉折出手訊號。</span></div><div style='margin-top:4px;padding:4px 8px;background:#f8fafc;border-left:3px solid #6366f1;font-size:0.8rem;color:#334155;'>🔍 邏輯驗證覆盤：前次(11-19 @ 290.5元)發出訊號後，截至目前股價走勢完全順應判讀方向 (+5.5%)，結合歷史 10 次驗證達 90% 勝率，該分點當下動向具備極高實戰參考權重。</div>
+                    </div>
+                </div>
+                
+                <div class="sb-item">
+                    <div class="sb-item-header">
+                        <div class="sb-item-name">
+                            <span>🏢 元大-板橋</span>
+                            <span class="badge badge-swing-sell">🎯波段賣頂神手 (🚨本波出貨)</span>
+                            
+                        </div>
+                        <div style="font-size:0.85rem;font-weight:700;color:#dc2626;">
+                            1年賣頂勝率 100%｜正價差 +13.5%
+                        </div>
+                    </div>
+                    <div class="sb-item-desc">
+                        <div><strong>① 1年回測基因</strong>：過去1年 <strong>3 度</strong>精準於波段高點大賣 (高檔狙擊率 <strong>100%</strong>、賣後回檔勝率 <strong>100%</strong>)，1年買均 <strong>226.4元</strong> ➔ 賣均 <strong>257.1元</strong> (正價差 <strong style='color:#dc2626;'>+30.7元 / +13.5%</strong>)</div><div style='margin-top:3px;'><strong>② 歷史波段實績</strong>：高檔 10-12~11-03 均價 257.06元 (最高 271元) 賣出 -115張 (波段回檔 -12.0%)</div><div style='margin-top:3px;'><span style='color:#dc2626;font-weight:700;'>🚨 本波最新動態：近5日(11-23~11-27)於 283~310.5元 再度密集賣超 -26張 (今日 +0張)，重現歷史高勝率賣頂訊號！</span></div><div style='margin-top:4px;padding:4px 8px;background:#f8fafc;border-left:3px solid #6366f1;font-size:0.8rem;color:#334155;'>🔍 邏輯驗證覆盤：前次(11-24 @ 288.06元)觸發賣頂警訊後，股價短線續漲至 306.5元 (+6.4%)，驗證該分點屬「主升段左側逢高分批調節」而非一賣即崩（過去 2 次出手有 1 次先軋後跌、最終波段勝率 100%）。目前於 306.5元 續賣（近5日累計 -26張、今日 +0張），應視為高檔籌碼供給增加之左側預警，宜待跌破 5MA 再確認右側轉折，勿單憑賣超直接摸頭放空。</div>
+                    </div>
+                </div>
+                
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+
+        <!-- 1.8 權威財經新聞與催化劑雷達 (Top 5 ｜ MoneyDJ 理財網 ✕ 鉅亨網 Anue) -->
+        
+        <div class="section-card">
+            <h2 class="section-title">
+                📰 權威財經新聞與催化劑雷達 (Top 5)
+                <span style="font-size:0.84rem;color:var(--text-muted);font-weight:normal;margin-left:auto;">當日個股/供應鏈催化劑 ✕ 台股總經焦點 (MoneyDJ / 鉅亨網 權威白名單)</span>
+            </h2>
+            <div class="news-resonance-banner neutral">
+                <div>💡 <strong>消息 ✕ 籌碼共振檢驗：【📊 消息與籌碼中性驗證】</strong> — 近期權威財經消息與籌碼進出維持常態換手，建議以 5D/20D 主力成本 (VWAP) 與 1 年認證高手動向為核心操作依據。</div>
+            </div>
+            <div class="news-list">
+                
+                <div class="news-card">
+                    <div class="news-rank top3">1</div>
+                    <div class="news-body">
+                        <a class="news-title-link" href="https://news.cnyes.com/news/id/6673977" target="_blank" rel="noopener noreferrer">免驚美國反AI聲浪？主計上修今明年台灣GDP 創80年代來新高峰</a>
+                        <div class="news-meta-row">
+                            <span class="news-badge news-badge-stock">🎯 個股焦點</span>
+                            <span class="news-badge news-badge-neutral">📊 焦點動態</span>
+                            <span class="news-badge news-badge-source">🏛️ 鉅亨網 Anue</span>
+                            <span class="news-time">🕒 11/27</span>
+                        </div>
+                    </div>
+                </div>
+            
+                <div class="news-card">
+                    <div class="news-rank top3">2</div>
+                    <div class="news-body">
+                        <a class="news-title-link" href="https://news.google.com/rss/articles/CBMiT0FVX3lxTFBmdE9fYmUwT19lM0Etb3Atd0xfTFdNS01NRVlIT2pnMTc5MVpVTGpkX0xGeDZ4eF8xZUtiQU9PaHN0d2NtRk1yU0J3alBDZHM?oc=5" target="_blank" rel="noopener noreferrer">台股選前量縮 外資續砍296億、三大法人賣超213.04億元</a>
+                        <div class="news-meta-row">
+                            <span class="news-badge news-badge-stock">🎯 個股焦點</span>
+                            <span class="news-badge news-badge-neutral">📊 焦點動態</span>
+                            <span class="news-badge news-badge-source">🏛️ 鉅亨網 Anue</span>
+                            <span class="news-time">🕒 11/27</span>
+                        </div>
+                    </div>
+                </div>
+            
+                <div class="news-card">
+                    <div class="news-rank top3">3</div>
+                    <div class="news-body">
+                        <a class="news-title-link" href="https://news.google.com/rss/articles/CBMiT0FVX3lxTFAzZlZOZDRCNnRUczg2cVlFRzhrTDJDTHpERHZpUHJEekQ5azVUYlhFQl9RWkNSdS1ueU1ZTWRhNllTVXlTUjNUR1QzdnZSSFU?oc=5" target="_blank" rel="noopener noreferrer">別指望聯準會出手救市？Fed傳聲筒：AI股暴跌拉高升息門檻 華許陷政策兩難</a>
+                        <div class="news-meta-row">
+                            <span class="news-badge news-badge-stock">🎯 個股焦點</span>
+                            <span class="news-badge news-badge-neutral">📊 焦點動態</span>
+                            <span class="news-badge news-badge-source">🏛️ 鉅亨網 Anue</span>
+                            <span class="news-time">🕒 11/26</span>
+                        </div>
+                    </div>
+                </div>
+            
+                <div class="news-card">
+                    <div class="news-rank">4</div>
+                    <div class="news-body">
+                        <a class="news-title-link" href="https://news.google.com/rss/articles/CBMiT0FVX3lxTE9FRUxDYWRCdnp0MTB0NmhCcTRQVkdraGgwMm9RWGNmYXJHWnhWOHVSNlNmUkJ6c2NMQ2pIc010bmE3OEh3bG9SUDdsenVDd28?oc=5" target="_blank" rel="noopener noreferrer">台股重登39K 外資期貨、現貨仍齊作空並再自台積電提款近390億元</a>
+                        <div class="news-meta-row">
+                            <span class="news-badge news-badge-stock">🎯 個股焦點</span>
+                            <span class="news-badge news-badge-neutral">📊 焦點動態</span>
+                            <span class="news-badge news-badge-source">🏛️ 鉅亨網 Anue</span>
+                            <span class="news-time">🕒 11/26</span>
+                        </div>
+                    </div>
+                </div>
+            
+                <div class="news-card">
+                    <div class="news-rank">5</div>
+                    <div class="news-body">
+                        <a class="news-title-link" href="https://news.google.com/rss/articles/CBMiT0FVX3lxTE1fREY2WUNNQTN0QTdHNzJCeHZnSVFiQWxKaXRjd3FVeGQ0aV9wOHdXNjFyRTJlMzBMYnVSdi12bXF0UWoxekNKX2F4eUZteHc?oc=5" target="_blank" rel="noopener noreferrer">〈熱門股〉視陽矽水膠產品展望正面 外資連4買本周抗跌</a>
+                        <div class="news-meta-row">
+                            <span class="news-badge news-badge-stock">🎯 個股焦點</span>
+                            <span class="news-badge news-badge-neutral">📊 焦點動態</span>
+                            <span class="news-badge news-badge-source">🏛️ 鉅亨網 Anue</span>
+                            <span class="news-time">🕒 11/21</span>
+                        </div>
+                    </div>
+                </div>
+            
+            </div>
+        </div>
+        
+
+        <!-- 2. 分點進出紅綠雙欄對照看板 (Tabs) -->
+        <div class="section-card">
+            <div class="section-title">👥 各週期關鍵主力分點進出對照看板</div>
+            <div class="tabs-header">
+                <button class="tab-btn active" id="btn-1" onclick="openTab('1')">1 日週期</button><button class="tab-btn " id="btn-5" onclick="openTab('5')">5 日週期</button>
+            </div>
+            
+            <div id="panel-1" class="period-panel active">
+                <div class="table-container">
+                    <div class="table-box">
+                        <div class="table-header-title buyer-title">
+                            <span>🔴 前 5 大買超券商</span>
+                            <span>買方前五佔比: 18.02%</span>
+                        </div>
+                        <table class="broker-table">
+                            <thead>
+                                <tr>
+                                    <th style="width:12%;">名次</th>
+                                    <th>券商分點名稱</th>
+                                    <th style="text-align:right;width:25%;">淨買超</th>
+                                    <th style="text-align:right;width:20%;">比重</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                
+                <tr>
+                    <td><strong>#1</strong></td>
+                    <td>台灣摩根士丹利 <span class="badge badge-disc">💼代操鎖碼</span><span class="badge badge-foreign">🏢波段外資</span><span class="badge badge-hoarder">🔒長線囤貨</span></td>
+                    <td style="text-align:right;" class="val-red">+38</td>
+                    <td style="text-align:right;">7.36%</td>
+                </tr>
+                
+                <tr>
+                    <td><strong>#2</strong></td>
+                    <td>國泰-敦南 </td>
+                    <td style="text-align:right;" class="val-red">+31</td>
+                    <td style="text-align:right;">6.01%</td>
+                </tr>
+                
+                <tr>
+                    <td><strong>#3</strong></td>
+                    <td>摩根大通 <span class="badge badge-fake-foreign">⚡短線假外資</span></td>
+                    <td style="text-align:right;" class="val-red">+11</td>
+                    <td style="text-align:right;">2.13%</td>
+                </tr>
+                
+                <tr>
+                    <td><strong>#4</strong></td>
+                    <td>新光-台中 </td>
+                    <td style="text-align:right;" class="val-red">+7</td>
+                    <td style="text-align:right;">1.36%</td>
+                </tr>
+                
+                <tr>
+                    <td><strong>#5</strong></td>
+                    <td>元大-新盛 </td>
+                    <td style="text-align:right;" class="val-red">+6</td>
+                    <td style="text-align:right;">1.16%</td>
+                </tr>
+                
+                            </tbody>
+                        </table>
+                    </div>
+                    <div class="table-box">
+                        <div class="table-header-title seller-title">
+                            <span>🟢 前 5 大賣超券商</span>
+                            <span>賣方前五佔比: 12.99%</span>
+                        </div>
+                        <table class="broker-table">
+                            <thead>
+                                <tr>
+                                    <th style="width:12%;">名次</th>
+                                    <th>券商分點名稱</th>
+                                    <th style="text-align:right;width:25%;">淨賣超</th>
+                                    <th style="text-align:right;width:20%;">比重</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                
+                <tr>
+                    <td><strong>#1</strong></td>
+                    <td>土銀-建國 <span class="badge badge-gov">🏛️官股</span></td>
+                    <td style="text-align:right;" class="val-green">-20</td>
+                    <td style="text-align:right;">3.88%</td>
+                </tr>
+                
+                <tr>
+                    <td><strong>#2</strong></td>
+                    <td>凱基-台北 <span class="badge badge-daytrader">⚠️隔日沖</span></td>
+                    <td style="text-align:right;" class="val-green">-19</td>
+                    <td style="text-align:right;">3.68%</td>
+                </tr>
+                
+                <tr>
+                    <td><strong>#3</strong></td>
+                    <td>美商高盛 <span class="badge badge-disc">💼代操鎖碼</span><span class="badge badge-foreign">🏢波段外資</span><span class="badge badge-hoarder">🔒長線囤貨</span></td>
+                    <td style="text-align:right;" class="val-green">-13</td>
+                    <td style="text-align:right;">2.52%</td>
+                </tr>
+                
+                <tr>
+                    <td><strong>#4</strong></td>
+                    <td>富邦-羅東 </td>
+                    <td style="text-align:right;" class="val-green">-8</td>
+                    <td style="text-align:right;">1.55%</td>
+                </tr>
+                
+                <tr>
+                    <td><strong>#5</strong></td>
+                    <td>凱基-岡山 </td>
+                    <td style="text-align:right;" class="val-green">-7</td>
+                    <td style="text-align:right;">1.36%</td>
+                </tr>
+                
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+            
+            <div id="panel-5" class="period-panel ">
+                <div class="table-container">
+                    <div class="table-box">
+                        <div class="table-header-title buyer-title">
+                            <span>🔴 前 5 大買超券商</span>
+                            <span>買方前五佔比: 12.33%</span>
+                        </div>
+                        <table class="broker-table">
+                            <thead>
+                                <tr>
+                                    <th style="width:12%;">名次</th>
+                                    <th>券商分點名稱</th>
+                                    <th style="text-align:right;width:25%;">淨買超</th>
+                                    <th style="text-align:right;width:20%;">比重</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                
+                <tr>
+                    <td><strong>#1</strong></td>
+                    <td>元大證券 <span class="badge badge-disc">💼代操鎖碼</span></td>
+                    <td style="text-align:right;" class="val-red">+160</td>
+                    <td style="text-align:right;">3.06%</td>
+                </tr>
+                
+                <tr>
+                    <td><strong>#2</strong></td>
+                    <td>永豐金證券 <span class="badge badge-hoarder">🔒長線囤貨</span></td>
+                    <td style="text-align:right;" class="val-red">+155</td>
+                    <td style="text-align:right;">2.96%</td>
+                </tr>
+                
+                <tr>
+                    <td><strong>#3</strong></td>
+                    <td>國票-敦北法人 <span class="badge badge-disc">💼代操鎖碼</span></td>
+                    <td style="text-align:right;" class="val-red">+150</td>
+                    <td style="text-align:right;">2.87%</td>
+                </tr>
+                
+                <tr>
+                    <td><strong>#4</strong></td>
+                    <td>康和 </td>
+                    <td style="text-align:right;" class="val-red">+100</td>
+                    <td style="text-align:right;">1.91%</td>
+                </tr>
+                
+                <tr>
+                    <td><strong>#5</strong></td>
+                    <td>富邦證券 <span class="badge badge-disc">💼代操鎖碼</span><span class="badge badge-hoarder">🔒長線囤貨</span></td>
+                    <td style="text-align:right;" class="val-red">+80</td>
+                    <td style="text-align:right;">1.53%</td>
+                </tr>
+                
+                            </tbody>
+                        </table>
+                    </div>
+                    <div class="table-box">
+                        <div class="table-header-title seller-title">
+                            <span>🟢 前 5 大賣超券商</span>
+                            <span>賣方前五佔比: 6.27%</span>
+                        </div>
+                        <table class="broker-table">
+                            <thead>
+                                <tr>
+                                    <th style="width:12%;">名次</th>
+                                    <th>券商分點名稱</th>
+                                    <th style="text-align:right;width:25%;">淨賣超</th>
+                                    <th style="text-align:right;width:20%;">比重</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                
+                <tr>
+                    <td><strong>#1</strong></td>
+                    <td>台灣摩根士丹利 <span class="badge badge-disc">💼代操鎖碼</span><span class="badge badge-foreign">🏢波段外資</span><span class="badge badge-hoarder">🔒長線囤貨</span></td>
+                    <td style="text-align:right;" class="val-green">-81</td>
+                    <td style="text-align:right;">1.55%</td>
+                </tr>
+                
+                <tr>
+                    <td><strong>#2</strong></td>
+                    <td>美商高盛 <span class="badge badge-disc">💼代操鎖碼</span><span class="badge badge-foreign">🏢波段外資</span><span class="badge badge-hoarder">🔒長線囤貨</span></td>
+                    <td style="text-align:right;" class="val-green">-76</td>
+                    <td style="text-align:right;">1.45%</td>
+                </tr>
+                
+                <tr>
+                    <td><strong>#3</strong></td>
+                    <td>港商野村 <span class="badge badge-fake-foreign">⚡短線假外資</span></td>
+                    <td style="text-align:right;" class="val-green">-69</td>
+                    <td style="text-align:right;">1.32%</td>
+                </tr>
+                
+                <tr>
+                    <td><strong>#4</strong></td>
+                    <td>富邦-中壢 <span class="badge badge-swing-sell">🎯波段賣頂</span></td>
+                    <td style="text-align:right;" class="val-green">-55</td>
+                    <td style="text-align:right;">1.05%</td>
+                </tr>
+                
+                <tr>
+                    <td><strong>#5</strong></td>
+                    <td>凱基-台北 <span class="badge badge-daytrader">⚠️隔日沖</span></td>
+                    <td style="text-align:right;" class="val-green">-47</td>
+                    <td style="text-align:right;">0.90%</td>
+                </tr>
+                
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+            
+        </div>
+
+        <!-- 3. AI 深度診斷報告 (含3秒決策Banner與語意高亮) -->
+        <div class="section-card">
+            <div class="section-title">🎯 AI 操盤手明日早盤實戰劇本</div>
+            
+                <div class="hero-decision" style="border-left: 4px solid #64748b; background: #f8fafc;">
+                    <div class="hero-title">🔄 【當日戰術訊號】短線多空籌碼交織，維持區間震盪節奏</div>
+                    <div class="hero-desc">當前現價 306.5 元緊貼短期主力成本，多空雙方互有進退，明日早盤操作宜順勢應對、切忌追高殺低。</div>
+                </div>
+                
+            <div class="analysis-content">
+                <h1>【6782 視陽】籌碼主力當日戰術快報</h1>
+<p><strong>分析日期</strong>：2026-11-27 ｜ <strong>當日收盤價</strong>：<span class="price-pill">📌 306.5 元</span></p>
+<hr/>
+<h3>一、當日多空動態與三大法人態度</h3>
+<ul>
+<li><strong>法人進出總覽</strong>：外資 <span class="val-pos">+29 張</span>、投信 <span class="val-pos">+0 張</span>、自營商 <span class="val-neg">-6 張</span>，合計淨買賣超 <span class="val-pos">+23 張</span>。整體判定為：<strong>三大法人買賣互見，態度偏向中性觀望</strong>。</li>
+<li><strong>🏛️ 八大官股與國家隊/代操動態</strong>：</li>
+<li><strong>八大官股態度</strong>：🟠 官股逢高調節（今日 <span class="val-neg">-27 張</span>、近5日累計 <span class="val-neg">-8 張</span>）。逢股價反彈或強勢，官股券商單日獲利調節 <span class="val-neg">-27 張</span> (近5日累計 <span class="val-neg">-8 張</span>)，符合官方逆勢逢高提款慣性</li>
+<li><strong>委外<span class="badge badge-disc">💼 代操席位</span></strong>：🔥 代操波段重倉<span class="bullish-tag">▲ 鎖碼</span>（今日 <span class="val-pos">+29 張</span>、近5日累計 <span class="val-pos">+250 張</span>、近20日累計 <span class="val-pos">+1,353 張</span>）。總公司與委外<span class="badge badge-disc">💼 代操席位</span>近5日大買 <span class="val-pos">+250 張</span> (近20日累計高達 <span class="val-pos">+1,353 張</span>)，籌碼呈單向高度純度囤貨<span class="bullish-tag">▲ 鎖碼</span></li>
+<li><strong>散戶資券消長</strong>：融資單日增減 <span class="val-pos">+46 張</span>（融資餘額 332 張，券資比 0.30%）。法人與散戶融資變動皆不大，籌碼維持中性觀望。</li>
+<li><strong>技術面均線與量能</strong>：5MA <span class="price-pill">📌 296.9 元</span> ｜ 20MA <span class="price-pill">📌 279.05 元</span> ｜ 60MA <span class="price-pill">📌 255.52 元</span> ｜ 成交放量比 0.50 倍 (量縮整理)。👑 現價 &gt; 5MA &gt; 20MA &gt; 60MA 呈三線<span class="bullish-tag">▲ 多頭</span>排列。</li>
+<li><strong>消息面 ✕ 籌碼面交叉印證</strong>：<strong>📊 消息與籌碼中性驗證 — 近期權威財經消息與籌碼進出維持常態換手，建議以 5D/20D 主力成本 (VWAP) 與 1 年認證高手動向為核心操作依據。</strong></li>
+</ul>
+<hr/>
+<h3>二、<span class="alert-pill">⚠️ 隔日沖</span>主力與關鍵分點監控</h3>
+<ul>
+<li><strong>當日買超前三券商</strong>：<span class="broker-pill">🏢 台灣摩根士丹利</span>, <span class="broker-pill">🏢 國泰-敦南</span>, <span class="broker-pill">🏢 摩根大通</span></li>
+<li><strong>當日賣超前三券商</strong>：<span class="broker-pill">🏢 土銀-建國</span>, <span class="broker-pill">🏢 凱基-台北</span>, <span class="broker-pill">🏢 美商高盛</span></li>
+<li><strong>極短線量化特徵</strong>：短線籌碼無異常集中</li>
+<li><strong>關鍵主力動態（1 年期歷史波段回測認證）</strong>：</li>
+<li><strong>🔒 <span class="badge badge-hoarder">🔒 長線囤貨</span>大戶</strong>：<span class="broker-pill">🏢 富邦證券</span>(240日淨買2,168張, 純度88.7%), <span class="broker-pill">🏢 美商高盛</span>(240日淨買868張, 純度53.0%), <span class="broker-pill">🏢 統一</span>(240日淨買863張, 純度77.3%)</li>
+<li><strong>🎯 波段神算高手</strong>：<strong><span class="broker-pill">🏢 統一-桃園</span></strong>（🐋<span class="badge badge-swing-sell">🎯 波段賣頂</span>巨鱷：過去1年8度於波段高點大賣(高檔狙擊率94%/回檔勝率80%/買低賣高<span class="val-pos">+22.8%</span>)，低檔 07-22~07-28 均價 <span class="price-pill">📌 184.69元</span> 抄底 <span class="val-pos">+81張</span> (後20日漲 <span class="val-pos">+29.8%</span>) ➔ 高檔 10-12~10-28 均價 <span class="price-pill">📌 256.79元</span> (最高 <span class="price-pill">📌 271元</span>) 賣出 <span class="val-neg">-198張</span> (波段回檔 <span class="val-neg">-12.0%</span>)；近5日(11-23~11-27)淨進出<span class="val-neg">-21張</span>(今日<span class="val-neg">-1張</span>)｜邏輯驗證:📊 波段勝率 93% (含 4 次左側早出手)）；<strong><span class="broker-pill">🏢 富邦-中壢</span></strong>（🐋<span class="badge badge-swing-sell">🎯 波段賣頂</span>巨鱷：過去1年4度於波段高點大賣(高檔狙擊率100%/回檔勝率100%/買低賣高<span class="val-pos">+16.8%</span>)，高檔 11-06~11-10 均價 <span class="price-pill">📌 278.42元</span> (最高 <span class="price-pill">📌 288元</span>) 賣出 <span class="val-neg">-31張</span> (波段回檔 <span class="val-neg">-11.5%</span>)；近5日(11-23~11-27)淨進出<span class="val-neg">-55張</span>(今日<span class="val-pos">+0張</span>)｜邏輯驗證:✅ 歷史驗證勝率 100% (4/4)）；<strong><span class="broker-pill">🏢 富邦-台中</span></strong>（🐋波段價差巨鱷：過去1年2度於波段高點大賣(高檔狙擊率100%/回檔勝率50%/買低賣高<span class="val-pos">+17.9%</span>)，高檔 11-02~11-20 均價 <span class="price-pill">📌 280.22元</span> (最高 <span class="price-pill">📌 290.5元</span>) 賣出 <span class="val-neg">-418張</span> (波段回檔 <span class="val-neg">-17.7%</span>)；近5日(11-23~11-27)淨進出<span class="val-pos">+0張</span>(今日<span class="val-pos">+0張</span>)｜邏輯驗證:✅ 歷史驗證勝率 50% (1/2)）</li>
+<li><strong>短線成本位階</strong>：</li>
+<li><strong>1 日主力成本 (VWAP)</strong>：<span class="price-pill">📌 310.01 元</span> (現價乖離 <span class="val-neg">-1.13%</span>)</li>
+<li><strong>5 日主力成本 (VWAP)</strong>：<span class="price-pill">📌 295.36 元</span> (現價乖離 <span class="val-pos">+3.77%</span>)</li>
+<li><strong>當日權威財經焦點 (MoneyDJ ✕ 鉅亨網 Top 5)</strong>：</li>
+<li><strong>[🌐 台股總經｜🔥 利多催化]</strong> 免驚美國反AI聲浪？主計上修今明年台灣GDP 創80年代來新高峰 <em>(鉅亨網 Anue 2026-11-27 18:28)</em></li>
+<li><strong>[🌐 台股總經｜⚠️ 利空警訊]</strong> 台股選前量縮 外資續砍296億、三大法人賣超213.04億元 <em>(鉅亨網 Anue 2026-11-27 14:59)</em></li>
+<li><strong>[🌐 台股總經｜⚠️ 利空警訊]</strong> 別指望聯準會出手救市？Fed傳聲筒：AI股暴跌拉高升息門檻 華許陷政策兩難 <em>(鉅亨網 Anue 2026-11-26 22:00)</em></li>
+<li><strong>[🌐 台股總經｜⚠️ 利空警訊]</strong> 台股重登39K 外資期貨、現貨仍齊作空並再自台積電提款近390億元 <em>(鉅亨網 Anue 2026-11-26 17:28)</em></li>
+<li><strong>[🎯 個股焦點｜📊 焦點動態]</strong> 〈熱門股〉視陽矽水膠產品展望正面 外資連4買本周抗跌 <em>(鉅亨網 Anue 2026-11-21 09:10)</em></li>
+</ul>
+<hr/>
+<h3>三、明日早盤實戰操盤劇本</h3>
+<ol>
+<li><strong>情境 A（早盤跳空開高 &gt; 1.5%）</strong>：</li>
+<li>需提防<span class="alert-pill">⚠️ 隔日沖</span>或短線量化席位（如 <span class="broker-pill">🏢 摩根大通</span>）之獲利了結<span class="bearish-tag">▼ 賣壓</span>。若 9:30 前爆量卻無法守穩當日開盤價，切勿追價，宜逢高減碼。</li>
+<li><strong>情境 B（平盤或小幅震盪回檔）</strong>：</li>
+<li>以 5 日加權均價 <strong><span class="price-pill">📌 295.36 元</span></strong> 作為即時防守支撐生命線。若回測不破且量能萎縮，為短線多單安全防守點。</li>
+<li><strong>情境 C（帶量破位下跌）</strong>：</li>
+<li>若有效<span class="bearish-tag">▼ 跌破</span> 1 日與 5 日成本帶且法人持續賣超，短線多單應嚴格執行停損退場。</li>
+</ol>
+            </div>
+        </div>
+
+        <div class="footer">
+            報告產出時間：2026-11-27 10:40:25 ｜ 專案架構：TWSE Multi-Period Chip Agent
+        </div>
+    </div>
+
+    <script>
+        function openTab(tabId) {
+            document.querySelectorAll('.tab-btn').forEach(btn => btn.classList.remove('active'));
+            document.querySelectorAll('.period-panel').forEach(p => p.classList.remove('active'));
+            const btn = document.getElementById('btn-' + tabId);
+            const panel = document.getElementById('panel-' + tabId);
+            if (btn && panel) {
+                btn.classList.add('active');
+                panel.classList.add('active');
+            }
+        }
+    </script>
+</body>
+</html>

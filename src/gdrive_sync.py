@@ -37,7 +37,7 @@ except ImportError:
 class GoogleDriveSync:
     """Manages headless file upload and folder structure in Google Drive."""
 
-    SCOPES = ['https://www.googleapis.com/auth/drive.file', 'https://www.googleapis.com/auth/drive']
+    SCOPES = ['https://www.googleapis.com/auth/drive']
 
     def __init__(self, service_account_key: Optional[str] = None, root_folder_id: Optional[str] = None, dry_run: bool = False):
         self.dry_run = dry_run
@@ -56,9 +56,45 @@ class GoogleDriveSync:
                 "Please run: pip install google-api-python-client google-auth"
             )
 
+        # 優先策略 1: 使用者個人 OAuth 2.0 (享有個人 15GB 空間，支援無人值守)
+        refresh_token = os.environ.get("GDRIVE_REFRESH_TOKEN")
+        client_id = os.environ.get("GDRIVE_CLIENT_ID")
+        client_secret = os.environ.get("GDRIVE_CLIENT_SECRET")
+        if refresh_token and client_id and client_secret:
+            try:
+                from google.oauth2.credentials import Credentials
+                creds = Credentials(
+                    token=None,
+                    refresh_token=refresh_token,
+                    token_uri="https://oauth2.googleapis.com/token",
+                    client_id=client_id,
+                    client_secret=client_secret,
+                    scopes=self.SCOPES
+                )
+                self.service = build('drive', 'v3', credentials=creds, cache_discovery=False)
+                logger.info("✅ 成功連線 Google Drive API (使用者個人 OAuth 鑑權完成，15GB 個人空間)")
+                return
+            except Exception as e:
+                logger.warning(f"⚠️ 個人 OAuth 連線失敗: {e}，嘗試備用方案")
+
+        # 優先策略 2: 本地使用者授權檔案
+        user_token_cand = Path(r"C:\Users\jonathancc_kao\Vibe_Coding\Key_No_Release\gdrive_user_token.json")
+        if user_token_cand.exists():
+            try:
+                from google.oauth2.credentials import Credentials
+                info = json.loads(user_token_cand.read_text(encoding='utf-8'))
+                creds = Credentials.from_authorized_user_info(info, scopes=self.SCOPES)
+                self.service = build('drive', 'v3', credentials=creds, cache_discovery=False)
+                logger.info("✅ 成功連線 Google Drive API (本地使用者授權檔鑑權完成)")
+                return
+            except Exception as e:
+                logger.warning(f"⚠️ 本地授權檔讀取失敗: {e}")
+
+        # 優先策略 3: 服務帳戶 Service Account
         if not self.service_account_key:
             # Check local file fallback
             local_candidates = [
+                Path(r"C:\Users\jonathancc_kao\Vibe_Coding\Key_No_Release\gdrive_service_account.json"),
                 Path("service_account.json"),
                 Path(".secrets/service_account.json"),
                 Path("../service_account.json")
@@ -69,7 +105,7 @@ class GoogleDriveSync:
                     break
 
         if not self.service_account_key:
-            logger.warning("⚠️ 未檢測到 Google Service Account 金鑰 (GDRIVE_SERVICE_ACCOUNT_KEY)，進入 Dry-run 模擬模式")
+            logger.warning("⚠️ 未檢測到 Google 金鑰，進入 Dry-run 模擬模式")
             self.dry_run = True
             return
 
@@ -88,6 +124,7 @@ class GoogleDriveSync:
             logger.info("✅ 成功連線 Google Drive API (服務帳戶鑑權完成)")
         except Exception as e:
             logger.error(f"❌ 初始化 Google Drive 服務失敗: {e}")
+            raise
             raise
 
     def get_or_create_folder(self, folder_name: str, parent_id: Optional[str] = None) -> Optional[str]:

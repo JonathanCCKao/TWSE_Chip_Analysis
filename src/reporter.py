@@ -1130,7 +1130,16 @@ class ChipReporter:
         return hashlib.sha256(raw_str.encode("utf-8")).hexdigest()[:24]
 
     def _init_client(self, key_path: str) -> Optional[genai.Client]:
-        if not os.path.exists(key_path):
+        # 1. 優先從環境變數讀取 (支援 GitHub Actions / 雲端部署)
+        env_key = os.environ.get("GEMINI_API_KEY")
+        if env_key and env_key.strip():
+            try:
+                return genai.Client(api_key=env_key.strip())
+            except Exception as e:
+                logger.error(f"透過環境變數 GEMINI_API_KEY 初始化 Gemini Client 失敗: {e}")
+
+        # 2. 次要從本機設定路徑讀取
+        if not key_path or not os.path.exists(key_path):
             logger.error(f"Gemini API Key 檔案不存在: {key_path}")
             return None
         try:

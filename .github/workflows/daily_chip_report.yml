@@ -94,6 +94,20 @@ jobs:
           echo "Syncing reports for date: $TODAY_STR to Google Drive..."
           python src/gdrive_sync.py --date "$TODAY_STR" --backup-db
 
+      - name: 💾 Commit & Push Updated Database & Reports
+        run: |
+          git config --global user.name "github-actions[bot]"
+          git config --global user.email "github-actions[bot]@users.noreply.github.com"
+          
+          # 將有變動的資料庫與戰報先推上 GitHub，確保 GitHub Pages 網頁連結可立即存取
+          git add data/chips.db brokers/ reports/
+          if git diff --staged --quiet; then
+            echo "No database changes to commit."
+          else
+            git commit -m "chore(auto): update chips.db and broker profiles [skip ci]"
+            git push
+          fi
+
       - name: 📧 Send Email Report to Gmail
         env:
           GMAIL_USER: ${{ secrets.GMAIL_USER }}
@@ -113,18 +127,4 @@ jobs:
             python src/mailer.py --date "$TODAY_STR" --mode weekly $CMD_ARGS
           else
             python src/mailer.py --date "$TODAY_STR" --mode "$RUN_MODE" $CMD_ARGS
-          fi
-
-      - name: 💾 Commit & Push Updated Database & Brokers Cache
-        run: |
-          git config --global user.name "github-actions[bot]"
-          git config --global user.email "github-actions[bot]@users.noreply.github.com"
-          
-          # 將有變動的資料庫與分點歷程存回私有倉儲
-          git add data/chips.db brokers/ reports/
-          if git diff --staged --quiet; then
-            echo "No database changes to commit."
-          else
-            git commit -m "chore(auto): update chips.db and broker profiles [skip ci]"
-            git push
           fi

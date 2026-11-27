@@ -115,10 +115,13 @@ class ChipReportMailer:
         subject = f"{mode_label} {date_formatted} ｜ 自選股追蹤：{stock_list_str}"
 
         # Build Stock Cards HTML
+        pages_base = os.environ.get("GITHUB_PAGES_URL", "https://jonathancckao.github.io/TWSE_Chip_Analysis").rstrip("/")
         stock_cards_html = ""
         for p in report_files:
             item = self._extract_report_summary(p)
             stock_code = item["stock_code"]
+            ym_dir = p.parent.name
+            online_url = f"{pages_base}/reports/{stock_code}/{ym_dir}/{p.name}"
             card_title = item["title"] or f"{stock_code} 籌碼戰情報告"
             teaser = item["headline"] or "已完成各週期主力鎖碼、大戶散戶人數、八大官股與代操席位數據整合分析。"
 
@@ -128,11 +131,16 @@ class ChipReportMailer:
                     <span style="font-size:16px; font-weight:bold; color:#0f172a;">{card_title}</span>
                     <span style="font-size:12px; background:#eff6ff; color:#2563eb; padding:3px 10px; border-radius:12px; font-weight:600;">代號 {stock_code}</span>
                 </div>
-                <div style="font-size:14px; color:#334155; line-height:1.6; margin-bottom:10px;">
+                <div style="font-size:14px; color:#334155; line-height:1.6; margin-bottom:14px;">
                     {teaser}
                 </div>
+                <div style="margin-bottom:12px;">
+                    <a href="{online_url}" target="_blank" style="display:inline-block; background:#2563eb; color:#ffffff; text-decoration:none; font-size:14px; font-weight:700; padding:10px 18px; border-radius:8px; box-shadow:0 2px 4px rgba(37,99,235,0.2);">
+                        📱 一鍵線上看完整戰報（含互動 K 線圖）
+                    </a>
+                </div>
                 <div style="font-size:12px; color:#64748b; background:#f8fafc; padding:8px 12px; border-radius:6px;">
-                    📎 附件包含完整全互動戰報：<b>{p.name}</b> (點擊附件可直接在電腦或手機中以瀏覽器開啟縮放圖表)
+                    📎 亦附上離線備份檔：<b>{p.name}</b>（手機閱讀建議直接點擊上方藍色按鈕，電腦亦可直接下載附件開啟）
                 </div>
             </div>
             """

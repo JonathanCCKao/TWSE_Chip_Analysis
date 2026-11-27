@@ -22,6 +22,11 @@ HTML_DASHBOARD_TEMPLATE = """<!DOCTYPE html>
     <title>【{stock_id}】多維度籌碼主力意圖診斷看板 - {trade_date}</title>
     <!-- ECharts CDN for lightweight interactive candlestick & volume chart -->
     <script src="https://cdn.jsdelivr.net/npm/echarts@5.4.3/dist/echarts.min.js"></script>
+    <script>
+        if (typeof echarts === 'undefined') {{
+            document.write('<script src="https://cdnjs.cloudflare.com/ajax/libs/echarts/5.4.3/echarts.min.js"></scr' + 'ipt>');
+        }}
+    </script>
     <style>
         :root {{
             --bg-color: #f1f5f9;
@@ -1309,13 +1314,23 @@ class ChipReporter:
                     紅漲 綠跌 ｜ 滾輪縮放 ｜ 移動游標查看逐日明細
                 </div>
             </div>
-            <div id="__CHART_ID__" style="width: 100%; height: 320px;"></div>
+            <div id="__CHART_ID__" style="width: 100%; height: 320px;">
+                <noscript><div style="padding:40px 16px;text-align:center;color:#64748b;font-size:13px;">⚠️ 目前預覽環境已停用 JavaScript，請改用 Chrome / Safari 開啟網頁版以查看互動 K 線圖。</div></noscript>
+            </div>
         </div>
 
         <script>
-        (function() {
+        (function initKlineChart(retryCount) {
             var chartDom = document.getElementById('__CHART_ID__');
-            if (!chartDom || typeof echarts === 'undefined') return;
+            if (!chartDom) return;
+            if (typeof echarts === 'undefined') {
+                if ((retryCount || 0) < 15) {
+                    setTimeout(function() { initKlineChart((retryCount || 0) + 1); }, 200);
+                } else {
+                    chartDom.innerHTML = '<div style="padding:40px 16px;text-align:center;color:#64748b;font-size:13px;">⚠️ 圖表元件載入受限（可能處於預覽沙盒或離線狀態），請改以瀏覽器開啟完整網頁檢視 K 線圖。</div>';
+                }
+                return;
+            }
             var myChart = echarts.init(chartDom);
 
             var dates = __DATES_JSON__;
@@ -1635,9 +1650,17 @@ class ChipReporter:
         </div>
 
         <script>
-        (function() {{
+        (function initDispersionChart(retryCount) {{
             var chartDom = document.getElementById('{chart_id}');
-            if (!chartDom || typeof echarts === 'undefined') return;
+            if (!chartDom) return;
+            if (typeof echarts === 'undefined') {{
+                if ((retryCount || 0) < 15) {{
+                    setTimeout(function() {{ initDispersionChart((retryCount || 0) + 1); }}, 200);
+                }} else {{
+                    chartDom.innerHTML = '<div style="padding:40px 16px;text-align:center;color:#64748b;font-size:13px;">⚠️ 圖表元件載入受限，請改以瀏覽器開啟完整網頁檢視趨勢圖。</div>';
+                }}
+                return;
+            }}
             var myChart = echarts.init(chartDom);
 
             var dates = {dates_json};

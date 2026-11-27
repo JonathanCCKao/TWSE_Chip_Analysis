@@ -167,7 +167,7 @@ def run(
         logger.info(f"--> [Collector] 抓取 {display_label} 三大法人、資券、集保大戶與 60日籌碼峰 (基準日: {anchor_date or '最新'})...")
         inst_data = fetch_institutional_investors(stock_id)
         margin_data = fetch_margin_trading(stock_id)
-        disp_data = fetch_shareholding_dispersion(stock_id)
+        disp_data = fetch_shareholding_dispersion(stock_id, db=db, force_refresh=force_refresh)
         profile_data = fetch_volume_profile_and_fundamentals(stock_id, anchor_date=anchor_date)
 
         # 2.3 全量量化運算 (真假外資、集保大戶、籌碼峰支撐、1年期波段高手基因庫)

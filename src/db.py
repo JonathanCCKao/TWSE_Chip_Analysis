@@ -1,7 +1,9 @@
 import sqlite3
 import os
+import json
 import logging
-from typing import List, Dict, Any, Optional
+from datetime import datetime
+from typing import List, Dict, Any, Optional, Tuple
 
 logger = logging.getLogger(__name__)
 
@@ -169,6 +171,17 @@ class ChipDatabase:
                 expires_at        TEXT NOT NULL,
                 metrics_json      TEXT NOT NULL,
                 PRIMARY KEY (stock_id, broker_name)
+            );
+            """)
+
+            # 9. 集保股權分散表週快取 (以週為單位，週五夜間前自動 0 請求複用)
+            cursor.execute("""
+            CREATE TABLE IF NOT EXISTS shareholding_dispersion_cache (
+                stock_id          TEXT NOT NULL,
+                week_date         TEXT NOT NULL,
+                dispersion_json   TEXT NOT NULL,
+                updated_at        TEXT NOT NULL,
+                PRIMARY KEY (stock_id, week_date)
             );
             """)
 
@@ -763,6 +776,102 @@ class ChipDatabase:
                     logger.debug(f"解析代操席位 JSON 異常: {e}")
                     continue
         return out
+
+    # ==========================================
+    # 9. 集保股權分散表週快取 (以週為單位智慧過期)
+    # ==========================================
+
+    def get_dispersion_cache(self, stock_id: str, week_date: Optional[str] = None) -> Optional[Dict[str, Any]]:
+        """取得集保股權分散表快取資料 (若無指定 week_date 則取最新一筆)"""
+        with self.get_connection() as conn:
+            cursor = conn.cursor()
+            if week_date:
+                query = "SELECT dispersion_json FROM shareholding_dispersion_cache WHERE stock_id = ? AND week_date = ?"
+                cursor.execute(query, (stock_id, week_date))
+            else:
+                query = "SELECT dispersion_json FROM shareholding_dispersion_cache WHERE stock_id = ? ORDER BY week_date DESC LIMIT 1"
+                cursor.execute(query, (stock_id,))
+            row = cursor.fetchone()
+            if row and row["dispersion_json"]:
+                try:
+                    return json.loads(row["dispersion_json"])
+                except Exception:
+                    pass
+        return None
+
+    def save_dispersion_cache(self, stock_id: str, week_date: str, dispersion_data: Dict[str, Any]):
+        """儲存集保股權分散表至週快取"""
+        if not stock_id or not week_date or not dispersion_data:
+            return
+        sql = """
+        INSERT INTO shareholding_dispersion_cache (
+            stock_id, week_date, dispersion_json, updated_at
+        ) VALUES (?, ?, ?, ?)
+        ON CONFLICT(stock_id, week_date) DO UPDATE SET
+            dispersion_json = excluded.dispersion_json,
+            updated_at = excluded.updated_at;
+        """
+        with self.get_connection() as conn:
+            cursor = conn.cursor()
+            cursor.execute(
+                sql,
+                (
+                    stock_id,
+                    week_date,
+                    json.dumps(dispersion_data, ensure_ascii=False),
+                    datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+                ),
+            )
+            conn.commit()
+
+    @staticmethod
+    def get_expected_tdcc_release_date(current_dt: Optional[datetime] = None) -> str:
+        """
+        計算截至當前時間點，TDCC 官方集保股權分散表理論上應已公布之最新基準日 (每週五)。
+        官方公布規律：每週五約 19:00~20:30 陸續更新當週數據。
+        - 週一至週四：最新已公布為「上週五」
+        - 週五 20:30 以前：最新已公布為「上週五」
+        - 週五 20:30 以後、週六、週日：最新已公布為「本週五」
+        """
+        from datetime import timezone, timedelta, time as dtime
+        tw_tz = timezone(timedelta(hours=8))
+        if current_dt is None:
+            now_dt = datetime.now(tz=tw_tz)
+        elif current_dt.tzinfo is None:
+            now_dt = current_dt.replace(tzinfo=tw_tz)
+        else:
+            now_dt = current_dt.astimezone(tw_tz)
+
+        wd = now_dt.weekday()  # 0: Mon, 4: Fri, 5: Sat, 6: Sun
+        if wd < 4:
+            # 週一至週四：扣掉 (wd + 3) 天即為上週五
+            target_date = (now_dt - timedelta(days=wd + 3)).date()
+        elif wd == 4:
+            # 週五：檢查是否已過 20:30
+            if now_dt.time() < dtime(20, 30):
+                target_date = (now_dt - timedelta(days=7)).date()
+            else:
+                target_date = now_dt.date()
+        else:
+            # 週六 (5) 或週日 (6)：本週五
+            target_date = (now_dt - timedelta(days=wd - 4)).date()
+
+        return target_date.strftime("%Y-%m-%d")
+
+    def is_dispersion_cache_valid(self, stock_id: str, current_dt: Optional[datetime] = None) -> Tuple[bool, Optional[Dict[str, Any]]]:
+        """
+        檢查個股之集保股權分散表快取是否依然有效。
+        若快取中最新紀錄之 week_date 等於或晚於當前預期的最新基準日，即判定快取完全有效。
+        回傳 (is_valid, cached_data)
+        """
+        expected_date = self.get_expected_tdcc_release_date(current_dt)
+        cached = self.get_dispersion_cache(stock_id)
+        if not cached:
+            return False, None
+        cached_date = str(cached.get("date", ""))
+        if cached_date and cached_date >= expected_date:
+            return True, cached
+        return False, None
 
 
 

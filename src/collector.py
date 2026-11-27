@@ -587,52 +587,74 @@ def _fetch_dispersion_norway(stock_id: str) -> Optional[Dict[str, Any]]:
         return None
 
 
-def fetch_shareholding_dispersion(stock_id: str) -> Optional[Dict[str, Any]]:
+def fetch_shareholding_dispersion(
+    stock_id: str,
+    db: Any = None,
+    force_refresh: bool = False,
+) -> Optional[Dict[str, Any]]:
     """
     抓取集保股權分散表 (優先解析 6 個月 >200張大戶 ✕ <10張散戶歷程，失敗則自動降級至 HiStock)
+    支援週快取機制：在週五 20:30 官方換週前，自動命中 SQLite 快取秒讀 (0 外部網路請求)
     """
+    if db is not None and not force_refresh:
+        try:
+            is_valid, cached = db.is_dispersion_cache_valid(stock_id)
+            if is_valid and cached and cached.get("trend_chart"):
+                logger.info(
+                    f"⚡ [Dispersion Cache Hit] {stock_id} 命中集保週快取 (基準週: {cached.get('date')})，0 網路請求秒讀"
+                )
+                return cached
+        except Exception as e:
+            logger.debug(f"集保快取判定異常: {e}")
+
     res = _fetch_dispersion_norway(stock_id)
-    if res and res.get("trend_chart"):
-        return res
+    if not res or not res.get("trend_chart"):
+        url = f"https://histock.tw/stock/large.aspx?no={stock_id}"
+        headers = {"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64)"}
+        try:
+            r = _safe_get(url, headers=headers, timeout=15, retries=2)
+            if r and r.status_code == 200:
+                soup = BeautifulSoup(r.text, "html.parser")
+                table = soup.find("table")
+                if table:
+                    rows = table.find_all("tr")
+                    data_rows = []
+                    for row in rows:
+                        tds = [td.get_text(strip=True) for td in row.find_all(["td", "th"])]
+                        if len(tds) >= 5 and tds[0] != "日期":
+                            data_rows.append(tds)
 
-    url = f"https://histock.tw/stock/large.aspx?no={stock_id}"
-    headers = {"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64)"}
-    try:
-        r = _safe_get(url, headers=headers, timeout=15, retries=2)
-        if r and r.status_code == 200:
-            soup = BeautifulSoup(r.text, "html.parser")
-            table = soup.find("table")
-            if table:
-                rows = table.find_all("tr")
-                data_rows = []
-                for row in rows:
-                    tds = [td.get_text(strip=True) for td in row.find_all(["td", "th"])]
-                    if len(tds) >= 5 and tds[0] != "日期":
-                        data_rows.append(tds)
+                    if len(data_rows) >= 2:
+                        latest = data_rows[0]
+                        prev = data_rows[1]
+                        cur_conc = _clean_number(latest[1])
+                        prev_conc = _clean_number(prev[1])
+                        diff_conc = round(cur_conc - prev_conc, 2)
 
-                if len(data_rows) >= 2:
-                    # 比較最新週與前一週
-                    latest = data_rows[0]
-                    prev = data_rows[1]
-                    cur_conc = _clean_number(latest[1])
-                    prev_conc = _clean_number(prev[1])
-                    diff_conc = round(cur_conc - prev_conc, 2)
+                        res = {
+                            "date": latest[0],
+                            "concentration_ratio": cur_conc,
+                            "concentration_diff": diff_conc,
+                            "over_200_ratio": cur_conc,
+                            "over_200_diff": diff_conc,
+                            "under_10_ratio": 0.0,
+                            "under_10_diff": 0.0,
+                            "foreign_ratio": _clean_number(latest[2]),
+                            "major_holder_ratio": _clean_number(latest[3]),
+                            "director_ratio": _clean_number(latest[4])
+                        }
+        except Exception as e:
+            logger.error(f"抓取 {stock_id} 集保大戶籌碼分散異常: {e}")
 
-                    return {
-                        "date": latest[0],
-                        "concentration_ratio": cur_conc,
-                        "concentration_diff": diff_conc,
-                        "over_200_ratio": cur_conc,
-                        "over_200_diff": diff_conc,
-                        "under_10_ratio": 0.0,
-                        "under_10_diff": 0.0,
-                        "foreign_ratio": _clean_number(latest[2]),
-                        "major_holder_ratio": _clean_number(latest[3]),
-                        "director_ratio": _clean_number(latest[4])
-                    }
-    except Exception as e:
-        logger.error(f"抓取 {stock_id} 集保大戶籌碼分散異常: {e}")
-    return None
+    # 若成功取得資料且提供 db，寫入 SQLite 快取供整週複用
+    if res and db is not None and res.get("date"):
+        try:
+            db.save_dispersion_cache(stock_id, res["date"], res)
+            logger.info(f"💾 [Dispersion Cache Saved] {stock_id} 已存入集保週快取 (基準週: {res['date']})")
+        except Exception as e:
+            logger.debug(f"儲存集保快取失敗: {e}")
+
+    return res
 
 
 def fetch_volume_profile_and_fundamentals(stock_id: str, anchor_date: Optional[str] = None) -> Dict[str, Any]:

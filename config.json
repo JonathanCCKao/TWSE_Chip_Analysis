@@ -23,6 +23,13 @@
     "primary_sources": ["MoneyDJ", "鉅亨網"],
     "fallback_sources": ["經濟日報", "工商時報", "中央社"]
   },
+  "schedule": {
+    "weekly_report": {
+      "cron": "CRON_TZ=Asia/Taipei 0 22 * * 5",
+      "target_time": "每週五 22:00 ~ 22:30",
+      "description": "於全台各市場數據 (法人、分點、TDCC集保大戶、信用資券) 完整就緒後，產出自選股週末戰略週報"
+    }
+  },
   "thresholds": {
     "hoarder_purity_min": 65.0,
     "hoarder_ratio_min": 1.8,

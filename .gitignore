@@ -13,6 +13,10 @@ logs/*.log
 .env
 *key*.txt
 *token*.txt
+service_account*.json
+.secrets/
+*.pem
+*.key
 
 # OS metadata
 .DS_Store

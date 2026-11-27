@@ -1,0 +1,106 @@
+name: Daily & Weekly Chip Strategy Report
+
+on:
+  schedule:
+    # 1. 每日盤後快報：每週一至週五 台北時間 17:30 (UTC 09:30)
+    - cron: '30 9 * * 1-5'
+    # 2. 集保籌碼週報：每週五 台北時間 22:00 (UTC 14:00)
+    - cron: '0 14 * * 5'
+  workflow_dispatch:
+    inputs:
+      mode:
+        description: '執行模式 (daily: 每日戰報 / weekly: 集保週報 / both: 兩者皆產)'
+        required: true
+        default: 'daily'
+        type: choice
+        options:
+          - daily
+          - weekly
+          - both
+      stock:
+        description: '指定單一股票代號 (留空則依據 watchlist.txt 全跑)'
+        required: false
+        default: ''
+
+jobs:
+  run-chip-report:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+
+    steps:
+      - name: 📥 Checkout Repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: 🐍 Set up Python 3.10
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.10'
+          cache: 'pip'
+
+      - name: 📦 Install Dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+
+      - name: ⏱️ Determine Execution Mode
+        id: mode_step
+        run: |
+          # 判斷是排程觸發還是手動觸發
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            echo "mode=${{ github.event.inputs.mode }}" >> $GITHUB_OUTPUT
+            echo "stock_arg=${{ github.event.inputs.stock }}" >> $GITHUB_OUTPUT
+          elif [ "${{ github.event.schedule }}" = "0 14 * * 5" ]; then
+            echo "mode=weekly" >> $GITHUB_OUTPUT
+            echo "stock_arg=" >> $GITHUB_OUTPUT
+          else
+            echo "mode=daily" >> $GITHUB_OUTPUT
+            echo "stock_arg=" >> $GITHUB_OUTPUT
+          fi
+
+      - name: 🚀 Run TWSE Chip Strategy Agent
+        env:
+          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+          GEMINI_MODEL: 'gemini-2.5-pro'
+        run: |
+          RUN_MODE="${{ steps.mode_step.outputs.mode }}"
+          STOCK_ARG="${{ steps.mode_step.outputs.stock_arg }}"
+          
+          CMD_ARGS=""
+          if [ -n "$STOCK_ARG" ]; then
+            CMD_ARGS="--stock $STOCK_ARG"
+          fi
+
+          if [ "$RUN_MODE" = "both" ]; then
+            echo "Running daily and weekly reports..."
+            python run_agent.py --mode daily $CMD_ARGS
+            python run_agent.py --mode weekly $CMD_ARGS
+          else
+            echo "Running in mode: $RUN_MODE $CMD_ARGS"
+            python run_agent.py --mode "$RUN_MODE" $CMD_ARGS
+          fi
+
+      - name: ☁️ Sync Reports & DB to Google Drive
+        env:
+          GDRIVE_SERVICE_ACCOUNT_KEY: ${{ secrets.GDRIVE_SERVICE_ACCOUNT_KEY }}
+          GDRIVE_FOLDER_ID: ${{ secrets.GDRIVE_FOLDER_ID }}
+        run: |
+          TODAY_STR=$(date +'%Y%m%d')
+          echo "Syncing reports for date: $TODAY_STR to Google Drive..."
+          python src/gdrive_sync.py --date "$TODAY_STR" --backup-db
+
+      - name: 💾 Commit & Push Updated Database & Brokers Cache
+        run: |
+          git config --global user.name "github-actions[bot]"
+          git config --global user.email "github-actions[bot]@users.noreply.github.com"
+          
+          # 將有變動的資料庫與分點歷程存回私有倉儲
+          git add data/chips.db brokers/ reports/
+          if git diff --staged --quiet; then
+            echo "No database changes to commit."
+          else
+            git commit -m "chore(auto): update chips.db and broker profiles [skip ci]"
+            git push
+          fi

@@ -94,6 +94,27 @@ jobs:
           echo "Syncing reports for date: $TODAY_STR to Google Drive..."
           python src/gdrive_sync.py --date "$TODAY_STR" --backup-db
 
+      - name: 📧 Send Email Report to Gmail
+        env:
+          GMAIL_USER: ${{ secrets.GMAIL_USER }}
+          GMAIL_APP_PASSWORD: ${{ secrets.GMAIL_APP_PASSWORD }}
+        run: |
+          TODAY_STR=$(date +'%Y%m%d')
+          RUN_MODE="${{ steps.mode_step.outputs.mode }}"
+          STOCK_ARG="${{ steps.mode_step.outputs.stock_arg }}"
+          
+          CMD_ARGS=""
+          if [ -n "$STOCK_ARG" ]; then
+            CMD_ARGS="--stock $STOCK_ARG"
+          fi
+          
+          if [ "$RUN_MODE" = "both" ]; then
+            python src/mailer.py --date "$TODAY_STR" --mode daily $CMD_ARGS
+            python src/mailer.py --date "$TODAY_STR" --mode weekly $CMD_ARGS
+          else
+            python src/mailer.py --date "$TODAY_STR" --mode "$RUN_MODE" $CMD_ARGS
+          fi
+
       - name: 💾 Commit & Push Updated Database & Brokers Cache
         run: |
           git config --global user.name "github-actions[bot]"

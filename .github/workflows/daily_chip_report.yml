@@ -4,8 +4,8 @@ on:
   schedule:
     # 1. 每日盤後快報：每週一至週五 台北時間 17:30 (UTC 09:30)
     - cron: '30 9 * * 1-5'
-    # 2. 集保籌碼週報：每週五 台北時間 22:00 (UTC 14:00)
-    - cron: '0 14 * * 5'
+    # 2. 集保籌碼週報：每週六 台北時間 10:00 (UTC 02:00) — 等待台灣集保結算所釋出當週最新數據
+    - cron: '0 2 * * 6'
   workflow_dispatch:
     inputs:
       mode:
@@ -52,7 +52,7 @@ jobs:
           if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
             echo "mode=${{ github.event.inputs.mode }}" >> $GITHUB_OUTPUT
             echo "stock_arg=${{ github.event.inputs.stock }}" >> $GITHUB_OUTPUT
-          elif [ "${{ github.event.schedule }}" = "0 14 * * 5" ]; then
+          elif [ "${{ github.event.schedule }}" = "0 2 * * 6" ]; then
             echo "mode=weekly" >> $GITHUB_OUTPUT
             echo "stock_arg=" >> $GITHUB_OUTPUT
           else
@@ -90,9 +90,10 @@ jobs:
           GDRIVE_SERVICE_ACCOUNT_KEY: ${{ secrets.GDRIVE_SERVICE_ACCOUNT_KEY }}
           GDRIVE_FOLDER_ID: ${{ secrets.GDRIVE_FOLDER_ID }}
         run: |
-          TODAY_STR=$(date +'%Y%m%d')
-          echo "Syncing reports for date: $TODAY_STR to Google Drive..."
-          python src/gdrive_sync.py --date "$TODAY_STR" --backup-db
+          TARGET_DATE=$(python -c "from src.collector import fetch_latest_trade_date; d=fetch_latest_trade_date(); print(d.replace('-', '') if d else '')" || true)
+          if [ -z "$TARGET_DATE" ]; then TARGET_DATE=$(date +'%Y%m%d'); fi
+          echo "Syncing reports for trade date: $TARGET_DATE to Google Drive..."
+          python src/gdrive_sync.py --date "$TARGET_DATE" --backup-db
 
       - name: 💾 Commit & Push Updated Database & Reports
         run: |
@@ -113,7 +114,8 @@ jobs:
           GMAIL_USER: ${{ secrets.GMAIL_USER }}
           GMAIL_APP_PASSWORD: ${{ secrets.GMAIL_APP_PASSWORD }}
         run: |
-          TODAY_STR=$(date +'%Y%m%d')
+          TARGET_DATE=$(python -c "from src.collector import fetch_latest_trade_date; d=fetch_latest_trade_date(); print(d.replace('-', '') if d else '')" || true)
+          if [ -z "$TARGET_DATE" ]; then TARGET_DATE=$(date +'%Y%m%d'); fi
           RUN_MODE="${{ steps.mode_step.outputs.mode }}"
           STOCK_ARG="${{ steps.mode_step.outputs.stock_arg }}"
           
@@ -123,8 +125,8 @@ jobs:
           fi
           
           if [ "$RUN_MODE" = "both" ]; then
-            python src/mailer.py --date "$TODAY_STR" --mode daily $CMD_ARGS
-            python src/mailer.py --date "$TODAY_STR" --mode weekly $CMD_ARGS
+            python src/mailer.py --date "$TARGET_DATE" --mode daily $CMD_ARGS
+            python src/mailer.py --date "$TARGET_DATE" --mode weekly $CMD_ARGS
           else
-            python src/mailer.py --date "$TODAY_STR" --mode "$RUN_MODE" $CMD_ARGS
+            python src/mailer.py --date "$TARGET_DATE" --mode "$RUN_MODE" $CMD_ARGS
           fi

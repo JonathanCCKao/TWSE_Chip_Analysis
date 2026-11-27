@@ -303,7 +303,8 @@ def main():
 
     sync = GoogleDriveSync(root_folder_id=args.folder_id, dry_run=args.dry_run)
 
-    if args.sync_reports or not (args.sync_reports or args.backup_db):
+    # 若指定了 --sync-reports 或 --date，或兩者旗標皆未指定時，均執行報告同步
+    if args.sync_reports or args.date or not (args.sync_reports or args.backup_db):
         sync.sync_daily_reports(target_date_str=args.date, stock_id=args.stock)
 
     if args.backup_db or not (args.sync_reports or args.backup_db):

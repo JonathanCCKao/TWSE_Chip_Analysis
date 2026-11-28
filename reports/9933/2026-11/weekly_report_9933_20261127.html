@@ -6,6 +6,11 @@
     <title>【9933】多維度籌碼主力意圖診斷看板 - 2026-11-27</title>
     <!-- ECharts CDN for lightweight interactive candlestick & volume chart -->
     <script src="https://cdn.jsdelivr.net/npm/echarts@5.4.3/dist/echarts.min.js"></script>
+    <script>
+        if (typeof echarts === 'undefined') {
+            document.write('<script src="https://cdnjs.cloudflare.com/ajax/libs/echarts/5.4.3/echarts.min.js"></scr' + 'ipt>');
+        }
+    </script>
     <style>
         :root {
             --bg-color: #f1f5f9;
@@ -948,7 +953,7 @@
                 <h1>【9933 中鼎】多維度籌碼主力意圖戰略週報 (Weekly)</h1>
                 <div class="header-subtitle">
                     <span class="mode-badge mode-weekly">🌌 週末戰略週報</span>
-                    <span class="report-timestamp">🕒 產出時間：2026-11-27 16:09</span>
+                    <span class="report-timestamp">🕒 產出時間：2026-11-28 09:46</span>
                     <span class="sep">｜</span>
                     <span>資料基準日：2026-11-27</span>
                     <span class="sep">｜</span>
@@ -980,13 +985,23 @@
                     紅漲 綠跌 ｜ 滾輪縮放 ｜ 移動游標查看逐日明細
                 </div>
             </div>
-            <div id="kline_chart_9933_中鼎" style="width: 100%; height: 320px;"></div>
+            <div id="kline_chart_9933_中鼎" style="width: 100%; height: 320px;">
+                <noscript><div style="padding:40px 16px;text-align:center;color:#64748b;font-size:13px;">⚠️ 目前預覽環境已停用 JavaScript，請改用 Chrome / Safari 開啟網頁版以查看互動 K 線圖。</div></noscript>
+            </div>
         </div>
 
         <script>
-        (function() {
+        (function initKlineChart(retryCount) {
             var chartDom = document.getElementById('kline_chart_9933_中鼎');
-            if (!chartDom || typeof echarts === 'undefined') return;
+            if (!chartDom) return;
+            if (typeof echarts === 'undefined') {
+                if ((retryCount || 0) < 15) {
+                    setTimeout(function() { initKlineChart((retryCount || 0) + 1); }, 200);
+                } else {
+                    chartDom.innerHTML = '<div style="padding:40px 16px;text-align:center;color:#64748b;font-size:13px;">⚠️ 圖表元件載入受限（可能處於預覽沙盒或離線狀態），請改以瀏覽器開啟完整網頁檢視 K 線圖。</div>';
+                }
+                return;
+            }
             var myChart = echarts.init(chartDom);
 
             var dates = ["2026-08-27", "2026-08-28", "2026-08-31", "2026-09-01", "2026-09-02", "2026-09-03", "2026-09-04", "2026-09-07", "2026-09-08", "2026-09-09", "2026-09-10", "2026-09-11", "2026-09-14", "2026-09-15", "2026-09-16", "2026-09-17", "2026-09-18", "2026-09-21", "2026-09-22", "2026-09-23", "2026-09-24", "2026-09-29", "2026-09-30", "2026-10-01", "2026-10-02", "2026-10-05", "2026-10-06", "2026-10-07", "2026-10-08", "2026-10-12", "2026-10-13", "2026-10-14", "2026-10-15", "2026-10-16", "2026-10-19", "2026-10-20", "2026-10-21", "2026-10-22", "2026-10-23", "2026-10-27", "2026-10-28", "2026-10-29", "2026-10-30", "2026-11-02", "2026-11-03", "2026-11-04", "2026-11-05", "2026-11-06", "2026-11-09", "2026-11-10", "2026-11-11", "2026-11-12", "2026-11-13", "2026-11-16", "2026-11-17", "2026-11-18", "2026-11-19", "2026-11-20", "2026-11-23", "2026-11-24", "2026-11-25", "2026-11-26", "2026-11-27"];
@@ -1297,15 +1312,15 @@
                 <div class="radar-items">
                     <div class="radar-item">
                         <div class="radar-label">>200張大戶</div>
-                        <div class="radar-val">74.0% <span style="font-size:0.75rem;" class="val-red">(+1.77%)</span></div>
+                        <div class="radar-val">74.1% <span style="font-size:0.75rem;" class="val-red">(+0.04%)</span></div>
                     </div>
                     <div class="radar-item">
                         <div class="radar-label"><10張散戶</div>
-                        <div class="radar-val">7.6% <span style="font-size:0.75rem;" class="val-green">(-0.41%)</span></div>
+                        <div class="radar-val">7.6% <span style="font-size:0.75rem;" class="val-red">(+0.02%)</span></div>
                     </div>
                     <div class="radar-item">
                         <div class="radar-label">千張大戶持股比</div>
-                        <div class="radar-val">62.1%</div>
+                        <div class="radar-val">62.8%</div>
                     </div>
                     <div class="radar-item">
                         <div class="radar-label">外資持股比</div>
@@ -1317,7 +1332,7 @@
                     </div>
                     <div class="radar-item">
                         <div class="radar-label">集保週基準日</div>
-                        <div class="radar-val" style="font-size:0.82rem;">2026-11-20</div>
+                        <div class="radar-val" style="font-size:0.82rem;">2026-11-27</div>
                     </div>
                 </div>
             </div>
@@ -1344,7 +1359,7 @@
                     </div>
                     <div class="radar-item">
                         <div class="radar-label">殖利率 (Yield)</div>
-                        <div class="radar-val">1.39%</div>
+                        <div class="radar-val">1.41%</div>
                     </div>
                     <div class="radar-item">
                         <div class="radar-label">箱型支撐位階</div>
@@ -1355,7 +1370,7 @@
         
         </div>
 
-        <div class="macro-alert-box">🎯 【1年認證賣頂高手出貨】過去1年 9 度精準賣頂之「台新-敦南」(勝率 70%、正價差 +14.1%)，近5日再度連賣 710 張 (今日 -162 張)，嚴防高檔見頂賣壓！<br>🎯 【1年認證抄底高手進場】歷史低檔抄底高手「中國信託」(正價差 +13.1%)，近5日積極買超 +291 張 (今日 +3 張)，留意波段底部支撐！<br>🎯 【1年認證賣頂高手出貨】過去1年 7 度精準賣頂之「永豐金-台中」(勝率 67%、正價差 +14.7%)，近5日再度連賣 400 張 (今日 +1 張)，嚴防高檔見頂賣壓！<br>🔥 【集保籌碼極度沉澱】最新一週 >200張大戶加碼 +1.77% (佔 74.0%) ✕ <10張散戶浮額退場 -0.41% (人數 +685 人)，籌碼高度鎖定！<br>🧱 【突破 60日籌碼密集峰】現價站穩密集換手箱型區 (50.9~53.0元，累積量佔 21.07%)，轉化為強力防守支撐帶<br>💼 【代操機構波段重倉】總公司/委外代操席位近5日累計淨買超 +388 張 (近20日累計 +50,052 張)，籌碼展現高度穩定度！<br>📊 【三線多頭排列】均線呈多頭排列架構 (現價>5MA>20MA>60MA)，多方控盤整理中。</div>
+        <div class="macro-alert-box">🎯 【1年認證賣頂高手出貨】過去1年 9 度精準賣頂之「台新-敦南」(勝率 70%、正價差 +14.1%)，近5日再度連賣 710 張 (今日 -162 張)，嚴防高檔見頂賣壓！<br>🎯 【1年認證抄底高手進場】歷史低檔抄底高手「中國信託」(正價差 +13.1%)，近5日積極買超 +291 張 (今日 +3 張)，留意波段底部支撐！<br>🎯 【1年認證賣頂高手出貨】過去1年 7 度精準賣頂之「永豐金-台中」(勝率 67%、正價差 +14.7%)，近5日再度連賣 400 張 (今日 +1 張)，嚴防高檔見頂賣壓！<br>🧱 【突破 60日籌碼密集峰】現價站穩密集換手箱型區 (50.9~53.0元，累積量佔 21.07%)，轉化為強力防守支撐帶<br>💼 【代操機構波段重倉】總公司/委外代操席位近5日累計淨買超 +388 張 (近20日累計 +50,052 張)，籌碼展現高度穩定度！<br>📊 【三線多頭排列】均線呈多頭排列架構 (現價>5MA>20MA>60MA)，多方控盤整理中。</div>
 
         <!-- 1. 多週期量化指標矩陣看板 -->
         <div class="section-card">
@@ -1437,7 +1452,7 @@
                     <span>集保股權巨細動態：主力大戶(>200張) ✕ 散戶(<10張) 6個月趨勢戰情室</span>
                 </div>
                 <div style="font-size:0.84rem; color:var(--text-muted);">
-                    基準週：<strong>2026-11-20</strong> ｜ 每週五盤後更新
+                    基準週：<strong>2026-11-27</strong> ｜ 每週五盤後更新
                 </div>
             </div>
 
@@ -1446,20 +1461,20 @@
                 <div class="disp-col disp-col-major">
                     <div class="disp-col-title">
                         <span class="disp-major-title">🔴 【主力大戶 (>200張)】 高度鎖碼看板</span>
-                        <span style="font-size:0.82rem; font-weight:600; color:#dc2626;">週增減 +1.77%</span>
+                        <span style="font-size:0.82rem; font-weight:600; color:#dc2626;">週增減 +0.04%</span>
                     </div>
                     <div class="disp-metrics-row">
                         <div class="disp-metric-item">
                             <span class="disp-m-label">持股比例</span>
-                            <span class="disp-m-val">74.03%</span>
+                            <span class="disp-m-val">74.07%</span>
                         </div>
                         <div class="disp-metric-item">
                             <span class="disp-m-label">大戶人數 (週增減)</span>
-                            <span class="disp-m-val">380 <small style="font-size:0.75rem; color:#2563eb;">(+1)</small></span>
+                            <span class="disp-m-val">376 <small style="font-size:0.75rem; color:#dc2626;">(-4)</small></span>
                         </div>
                         <div class="disp-metric-item">
                             <span class="disp-m-label">人均持股</span>
-                            <span class="disp-m-val">1,949.0 <small style="font-size:0.75rem; color:#64748b;">張/人</small></span>
+                            <span class="disp-m-val">1,979.9 <small style="font-size:0.75rem; color:#64748b;">張/人</small></span>
                         </div>
                     </div>
                 </div>
@@ -1467,20 +1482,20 @@
                 <div class="disp-col disp-col-retail">
                     <div class="disp-col-title">
                         <span class="disp-retail-title">🟢 【純散戶 (<10張)】 浮額清洗看板</span>
-                        <span style="font-size:0.82rem; font-weight:600; color:#16a34a;">週增減 -0.41%</span>
+                        <span style="font-size:0.82rem; font-weight:600; color:#dc2626;">週增減 +0.02%</span>
                     </div>
                     <div class="disp-metrics-row">
                         <div class="disp-metric-item">
                             <span class="disp-m-label">持股比例</span>
-                            <span class="disp-m-val">7.59%</span>
+                            <span class="disp-m-val">7.61%</span>
                         </div>
                         <div class="disp-metric-item">
                             <span class="disp-m-label">散戶人數 (週增減)</span>
-                            <span class="disp-m-val">45,335 <small style="font-size:0.75rem; color:#dc2626;">(+685)</small></span>
+                            <span class="disp-m-val">45,579 <small style="font-size:0.75rem; color:#dc2626;">(+244)</small></span>
                         </div>
                         <div class="disp-metric-item">
                             <span class="disp-m-label">人均持股</span>
-                            <span class="disp-m-val">1.67 <small style="font-size:0.75rem; color:#64748b;">張/人</small></span>
+                            <span class="disp-m-val">1.68 <small style="font-size:0.75rem; color:#64748b;">張/人</small></span>
                         </div>
                     </div>
                 </div>
@@ -1490,24 +1505,32 @@
             <div id="dispersion_chart_9933_中鼎" style="width: 100%; height: 390px;"></div>
 
             <!-- 3. 籌碼結構診斷條 -->
-            <div class="disp-banner disp-banner-bull">
-                <span>🔥</span>
-                <div><strong>【籌碼極度沉澱】大戶鎖碼 ✕ 散戶退場</strong>：>200張主力大戶本週加碼 +1.77% ✕ <10張散戶浮額退場 -0.41% (散戶人數減少 685 人)！籌碼向少數特定強手高度集中，多方波段底氣深厚。</div>
+            <div class="disp-banner disp-banner-neutral">
+                <span>🔄</span>
+                <div><strong>【籌碼良性換手】主力平穩 ✕ 浮額有序整理</strong>：>200張主力大戶變動 +0.04%，<10張散戶變動 +0.02%，籌碼結構維持常態箱型換手。</div>
             </div>
         </div>
 
         <script>
-        (function() {
+        (function initDispersionChart(retryCount) {
             var chartDom = document.getElementById('dispersion_chart_9933_中鼎');
-            if (!chartDom || typeof echarts === 'undefined') return;
+            if (!chartDom) return;
+            if (typeof echarts === 'undefined') {
+                if ((retryCount || 0) < 15) {
+                    setTimeout(function() { initDispersionChart((retryCount || 0) + 1); }, 200);
+                } else {
+                    chartDom.innerHTML = '<div style="padding:40px 16px;text-align:center;color:#64748b;font-size:13px;">⚠️ 圖表元件載入受限，請改以瀏覽器開啟完整網頁檢視趨勢圖。</div>';
+                }
+                return;
+            }
             var myChart = echarts.init(chartDom);
 
-            var dates = ["2026-05-29", "2026-06-05", "2026-06-12", "2026-06-18", "2026-06-26", "2026-07-03", "2026-07-09", "2026-07-17", "2026-07-24", "2026-07-31", "2026-08-07", "2026-08-14", "2026-08-21", "2026-08-28", "2026-09-04", "2026-09-11", "2026-09-18", "2026-09-24", "2026-10-02", "2026-10-08", "2026-10-16", "2026-10-22", "2026-10-30", "2026-11-06", "2026-11-13", "2026-11-20"];
-            var over200 = [64.86, 65.01, 65.2, 65.7, 66.06, 65.77, 67.52, 67.63, 67.7, 67.61, 67.29, 68.05, 68.24, 68.37, 68.11, 67.84, 68.39, 68.3, 68.43, 68.96, 69.02, 69.06, 70.13, 70.51, 72.26, 74.03];
-            var under10 = [10.84, 11.08, 10.96, 10.75, 10.51, 10.47, 9.95, 9.88, 9.85, 9.88, 9.91, 9.66, 9.54, 9.5, 9.53, 9.56, 9.35, 9.34, 9.33, 8.86, 8.85, 8.81, 8.48, 8.35, 8.0, 7.59];
-            var prices = [39.65, 43.45, 40.95, 42.65, 41.95, 40.95, 41.1, 39.15, 40.05, 35.25, 37.75, 42.9, 42.15, 40.6, 40.4, 41.7, 42.3, 41.0, 45.8, 43.1, 43.2, 44.65, 45.3, 44.4, 51.6, 51.5];
-            var over200Cnt = [332, 335, 342, 346, 350, 356, 356, 354, 352, 356, 348, 350, 345, 346, 349, 350, 348, 346, 347, 358, 365, 366, 376, 380, 379, 380];
-            var under10Cnt = [50348, 51774, 51328, 50614, 49688, 49467, 49343, 49007, 48820, 48788, 48861, 48089, 47559, 47437, 47495, 47594, 46963, 46870, 46823, 50900, 50065, 49687, 48446, 44911, 44650, 45335];
+            var dates = ["2026-06-05", "2026-06-12", "2026-06-18", "2026-06-26", "2026-07-03", "2026-07-09", "2026-07-17", "2026-07-24", "2026-07-31", "2026-08-07", "2026-08-14", "2026-08-21", "2026-08-28", "2026-09-04", "2026-09-11", "2026-09-18", "2026-09-24", "2026-10-02", "2026-10-08", "2026-10-16", "2026-10-22", "2026-10-30", "2026-11-06", "2026-11-13", "2026-11-20", "2026-11-27"];
+            var over200 = [65.01, 65.2, 65.7, 66.06, 65.77, 67.52, 67.63, 67.7, 67.61, 67.29, 68.05, 68.24, 68.37, 68.11, 67.84, 68.39, 68.3, 68.43, 68.96, 69.02, 69.06, 70.13, 70.51, 72.26, 74.03, 74.07];
+            var under10 = [11.08, 10.96, 10.75, 10.51, 10.47, 9.95, 9.88, 9.85, 9.88, 9.91, 9.66, 9.54, 9.5, 9.53, 9.56, 9.35, 9.34, 9.33, 8.86, 8.85, 8.81, 8.48, 8.35, 8.0, 7.59, 7.61];
+            var prices = [43.45, 40.95, 42.65, 41.95, 40.95, 41.1, 39.15, 40.05, 35.25, 37.75, 42.9, 42.15, 40.6, 40.4, 41.7, 42.3, 41.0, 45.8, 43.1, 43.2, 44.65, 45.3, 44.4, 51.6, 51.5, 54.1];
+            var over200Cnt = [335, 342, 346, 350, 356, 356, 354, 352, 356, 348, 350, 345, 346, 349, 350, 348, 346, 347, 358, 365, 366, 376, 379, 379, 380, 376];
+            var under10Cnt = [51774, 51328, 50614, 49688, 49467, 49343, 49007, 48820, 48788, 48861, 48089, 47559, 47437, 47495, 47594, 46963, 46870, 46823, 50900, 50065, 49687, 48446, 48017, 44650, 45335, 45579];
 
             var allPcts = over200.concat(under10).filter(function(v) { return v !== null && !isNaN(v); });
             var minPct = allPcts.length ? Math.max(0, Math.floor(Math.min.apply(null, allPcts) - 2)) : 0;
@@ -2566,37 +2589,42 @@
                 </div>
                 
             <div class="analysis-content">
-                <h2>台股機構籌碼戰略週報：中鼎 (9933) - 機構籌碼高度鎖定，逆勢<span class="bullish-tag">▲ 吸籌</span>態勢明確</h2>
-<p><strong>發布日期:</strong> 2026年11月27日 (當日收盤價: <span class="price-pill">📌 54.1元</span>)</p>
+                <h2>9933 中鼎機構籌碼戰略週報 (2026-11-27)</h2>
+<h3>總結與評級</h3>
+<p>中鼎(9933)本週在整體市場<span class="bearish-tag">▼ 偏空</span>氛圍中，展現出強勁的機構籌碼逆勢<span class="bullish-tag">▲ 吸籌</span>態勢。儘管有部分<span class="badge badge-swing-sell">🎯 波段賣頂</span>高手逢高獲利了結，但<span class="badge badge-hoarder">🔒 長線囤貨</span>大戶與委外代操的穩定<span class="bullish-tag">▲ 鎖碼</span>，以及最重要的外資在市場大賣台積電之際，卻逆勢大買中鼎，顯示其獨特的強勢基本面或題材共振。股價已<span class="bullish-tag">▲ 站穩</span>多週期主力成本之上，並<span class="bullish-tag">▲ 突破</span>60日籌碼密集峰，短期雖有獲利了結壓力，但中長線<span class="bullish-tag">▲ 多頭</span>格局明確，建議 <strong><span class="bullish-tag">▲ 偏多</span>操作 (買進/持有)</strong>。</p>
 <h3>1. 集保大戶週趨勢與融資對沖結構驗證</h3>
-<p>中鼎 (9933) 的集保籌碼結構本週呈現極度有利的多方沉澱態勢。最新一週數據顯示，持有200張以上的大戶持股比重顯著增加1.77%至74.0%，且大戶人數同步增加380人，顯示核心主力持續加碼<span class="bullish-tag">▲ 鎖碼</span>。相對地，持有10張以下的散戶浮額則同步減少0.41%至7.6%，儘管散戶人數略增685人，但其持股比重的下降，有效收斂了市場的潛在<span class="bearish-tag">▼ 賣壓</span>。整體而言，千張大戶持股比重高達62.1%，籌碼高度集中，市場惜售氛圍濃厚。</p>
-<p>融資餘額本週雖略增257張至12,238張，但考量到中鼎整體籌碼已呈現高度集中於大戶手中，且機構法人與長線買盤積極，少量的融資增加可視為市場活絡度的提升，而非散戶過度追價的警訊，融資對整體籌碼健康的影響有限。系統宏觀訊號明確指出「集保籌碼極度沉澱」，驗證了當前中鼎籌碼面的強勁。</p>
-<h3>2. 多週期主力成本階梯與籌碼峰支撐壓力位階</h3>
-<p>當前中鼎股價<span class="price-pill">📌 54.1元</span>，顯著<span class="bullish-tag">▲ 站穩</span>各週期主力平均成本之上，展現強勁的領先優勢：
-*   <strong>20日主力成本 (VWAP):</strong> <span class="price-pill">📌 53.12元</span> (股價溢價約1.8%)
-*   <strong>60日主力成本 (VWAP):</strong> <span class="price-pill">📌 50.1元</span> (股價溢價約8.0%)
-*   <strong>120日主力成本 (VWAP):</strong> <span class="price-pill">📌 47.37元</span> (股價溢價約14.2%)
-*   <strong>240日主力成本 (VWAP):</strong> <span class="price-pill">📌 42.55元</span> (股價溢價約27.1%)</p>
-<p>這表示短、中、長線主力皆處於獲利狀態，且股價越往長週期，與主力成本的乖離率越高，顯示早期進場的主力獲利豐厚，為股價提供堅實的持有信心。</p>
-<p>更重要的是，60日籌碼密集峰(POC)位於<span class="price-pill">📌 50.94元</span>至<span class="price-pill">📌 53.03元</span>區間，量佔比高達21.07%。當前股價<span class="price-pill">📌 54.1元</span>已穩穩站在此密集峰之上，這使得原本的籌碼壓力區轉化為強力的防守支撐帶。系統宏觀訊號也確認「<span class="bullish-tag">▲ 突破</span>60日籌碼密集峰」，預期此區間將為股價提供堅實的底部支撐，下方壓力相對減輕。</p>
-<h3>3. 關鍵分點深度解析與消息面共振檢驗</h3>
-<p><strong><span class="badge badge-hoarder">🔒 長線囤貨</span>大戶<span class="bullish-tag">▲ 鎖碼</span>底氣：</strong> 觀察120~240日週期，<span class="broker-pill">🏢 台灣摩根士丹利</span>(240D<span class="val-pos">+64,282張</span>/4.42%)、<span class="broker-pill">🏢 美商高盛</span>(240D<span class="val-pos">+29,793張</span>/2.05%)及<span class="broker-pill">🏢 摩根大通</span>(240D<span class="val-pos">+18,744張</span>/1.29%)等外資券商，展現了驚人的長期<span class="bullish-tag">▲ 吸籌</span>能力。這些國際級機構以高純度及巨額的部位，持續且堅定地<span class="bullish-tag">▲ 鎖碼</span>中鼎，無疑為股價奠定了深厚的長線價值底氣，其布局力度遠非短期波動所能影響。</p>
-<p><strong>官股代操動態與法人態度：</strong> 八大官股近5日轉為買超護航(<span class="val-pos">+808張</span>)，儘管20日有部分調節(<span class="val-neg">-4,345張</span>)，但其短期積極承接的動作，顯示官方資金對股價有一定程度的關注重視。更值得留意的是，總公司/委外<span class="badge badge-disc">💼 代操席位</span>展現出極高的穩定性與長線<span class="bullish-tag">▲ 鎖碼</span>決心，近5日淨買超<span class="val-pos">+388張</span>，近20日累計淨買超更高達<span class="val-pos">+50,052張</span>。這種大規模、持續性的重倉布局，是極其強烈的<span class="bullish-tag">▲ 多頭</span>訊號，反映代操機構對中鼎未來展望的高度信心。</p>
-<p><strong>1年認證波段高手最新動向與消息面共振/背離檢驗：</strong>
-*   <strong>賣頂巨鱷動向：</strong> 過去1年9度精準賣頂的「<span class="broker-pill">🏢 台新-敦南</span>」，近5日連賣<span class="val-neg">-710張</span>(今日<span class="val-neg">-162張</span>)，顯示其在高檔持續進行獲利了結。同時，另一賣頂巨鱷「<span class="broker-pill">🏢 永豐金-台中</span>」近5日也賣出400張，這些<span class="bearish-tag">▼ 賣壓</span>需密切留意。
-*   <strong>抄底巨鱷進場：</strong> 歷史低檔抄底高手「<span class="broker-pill">🏢 中國信託</span>」，近5日則積極買超<span class="val-pos">+291張</span>(今日<span class="val-pos">+3張</span>)，形成下檔波段支撐力道。這顯示市場上存在對股價提供底部保護的資金。</p>
-<p><strong>消息✕籌碼共振檢驗：</strong> 本週Top5權威財經新聞顯示，大盤受選前量縮與外資持續砍殺影響，市場氣氛<span class="bearish-tag">▼ 偏空</span>。然而，新聞中特別提及「外資今續賣超380億元並自台積電提款321億元 買超中鼎2.47萬張」，這與大盤整體<span class="bearish-tag">▼ 賣壓</span>形成鮮明對比。這強烈印證了本報告系統宏觀訊號所揭示的「消息平淡/<span class="bearish-tag">▼ 偏空</span>下主力逆勢<span class="bullish-tag">▲ 吸籌</span>」結論。在整體市場環境偏保守甚至<span class="bearish-tag">▼ 偏空</span>的情況下，外資及其他核心法人逆勢大規模買超中鼎，顯示籌碼面已領先基本面與市場情緒，率先表態其積極布局的意圖。</p>
+<p>中鼎的籌碼集中度維持在高檔，千張大戶持股高達62.81%，而200張以上大戶持股比例亦穩定在74.1%，本週微幅增加0.04%，顯示大戶籌碼並未明顯鬆動。散戶持股（&lt;10張）僅佔7.6%，且僅微幅增加0.02%，並未出現籌碼顯著分散的跡象。融資餘額本週增加257張，但考量其在高檔的整體籌碼穩定性，融資小幅增加可能反映了市場對股價上漲的信心增強，而非過度浮額堆積，目前並未構成顯著的對沖風險。整體而言，集保籌碼結構健康且高度集中，為股價提供堅實支撐。</p>
+<h3>2. 多週期主力成本階梯 ✕ 60日籌碼峰支撐壓力位階</h3>
+<p>目前中鼎股價<span class="price-pill">📌 54.1元</span>，已顯著<span class="bullish-tag">▲ 站穩</span>各週期主力成本之上，呈現典型的<span class="bullish-tag">▲ 多頭</span>排列格局：
+*   <strong>20日VWAP：</strong> <span class="price-pill">📌 53.12元</span> (乖離<span class="val-pos">+1.8%</span>)
+*   <strong>60日VWAP：</strong> <span class="price-pill">📌 50.1元</span> (乖離<span class="val-pos">+8.0%</span>)
+*   <strong>120日VWAP：</strong> <span class="price-pill">📌 47.37元</span> (乖離<span class="val-pos">+14.2%</span>)
+*   <strong>240日VWAP：</strong> <span class="price-pill">📌 42.55元</span> (乖離<span class="val-pos">+27.1%</span>)
+這表明當前股價大幅超越了過去20、60、120甚至240天買進主力的平均成本，顯示持倉主力的獲利空間豐厚。
+更重要的是，股價已<span class="bullish-tag">▲ 突破</span>並<span class="bullish-tag">▲ 站穩</span><strong>60日籌碼密集峰(POC)的<span class="price-pill">📌 50.94~53.03元</span>區間</strong>。這個區間累積了21.07%的換手量，<span class="bullish-tag">▲ 突破</span>後已從壓力轉化為強勁的支撐帶。搭配系統訊號「<span class="bullish-tag">▲ 突破</span>60日籌碼密集峰」與「三線<span class="bullish-tag">▲ 多頭</span>排列」，確立了股價的強勢防守位階，後市若有拉回，此區間將提供有效支撐。</p>
+<h3>3. 關鍵分點深度解析 ✕ 官股代操動態 ✕ 財經新聞交叉驗證</h3>
+<ul>
+<li><strong><span class="badge badge-hoarder">🔒 長線囤貨</span>大戶<span class="bullish-tag">▲ 鎖碼</span>底氣：</strong> 長線大戶如<span class="broker-pill">🏢 台灣摩根士丹利</span>(240D+6.4萬張)、<span class="broker-pill">🏢 美商高盛</span>(240D+2.9萬張)、<span class="broker-pill">🏢 摩根大通</span>(240D+1.8萬張)持續進行高純度囤貨，合計近240日累積買超逾11萬張，這些外資券商展現了極高的長線持有信心，為中鼎的股價提供了堅實的「<span class="bullish-tag">▲ 鎖碼</span>底氣」。</li>
+<li><strong>官股與代操動態：</strong> 八大官股近5日買超808張，雖近20日仍為賣超，但短期進場護盤訊號明確。委外<span class="badge badge-disc">💼 代操席位</span>近5日買超388張，近20日更累計買超高達50,052張，顯示代操機構對中鼎展現出極高的穩定度與「波段重倉<span class="bullish-tag">▲ 鎖碼</span>」意圖，對後市展望樂觀。</li>
+<li><strong>波段高手動向與消息面共振/背離：</strong><ul>
+<li><strong>賣頂巨鱷警訊：</strong> 過去一年九度精準賣頂的「<span class="broker-pill">🏢 台新-敦南</span>」近5日連賣710張，今日再賣162張；另一賣頂高手「<span class="broker-pill">🏢 永豐金-台中</span>」近5日亦賣超400張。這些指標性賣頂高手<span class="bearish-tag">▼ 出貨</span>，提示投資人短期漲幅可能已高，需嚴防獲利了結<span class="bearish-tag">▼ 賣壓</span>。</li>
+<li><strong>抄底巨鱷進場：</strong> 歷史低檔抄底高手「<span class="broker-pill">🏢 中國信託</span>」近5日積極買超291張，顯示其在當前價位看到波段底部支撐或新一輪的上漲契機。</li>
+<li><strong>新聞面關鍵背離：</strong> 本週Top5財經新聞中，(1)-(4)均指出外資對台股整體及台積電進行大幅賣超，市場氛圍<span class="bearish-tag">▼ 偏空</span>。然而，新聞(5)卻明確揭露「外資今續賣超380億元並自台積電提款321億元 買超中鼎2.47萬張」。這是一個極為重要的「籌碼與消息共振背離」訊號——在整體市場面臨外資提款壓力時，外資卻逆勢、大規模地加碼中鼎，驗證了系統的「消息平淡／<span class="bearish-tag">▼ 偏空</span>下主力逆勢<span class="bullish-tag">▲ 吸籌</span>」判讀。這表示中鼎可能具備獨立於大盤的利多或強勁基本面，吸引外資<span class="bullish-tag">▲ 鎖碼</span>。</li>
+</ul>
+</li>
+</ul>
 <h3>4. 下週波段實戰操盤指引</h3>
-<p><strong>多空態勢判斷：</strong> 綜合所有機構籌碼分析，中鼎籌碼面呈現極度有利的多方格局。儘管部分<span class="badge badge-swing-sell">🎯 波段賣頂</span>高手<span class="bearish-tag">▼ 出貨</span>，但有<span class="badge badge-hoarder">🔒 長線囤貨</span>大戶的堅實<span class="bullish-tag">▲ 鎖碼</span>、委外代操機構的波段重倉，以及大戶持股比重的顯著提升，加上股價已<span class="bullish-tag">▲ 突破</span>60日籌碼密集峰並維持三線<span class="bullish-tag">▲ 多頭</span>排列，整體多方控盤態勢明確。市場消息面<span class="bearish-tag">▼ 偏空</span>反而成為主力逆勢<span class="bullish-tag">▲ 吸籌</span>的掩護，顯示後續動能可期。</p>
-<p><strong>關鍵價位指引：</strong>
-*   <strong>關鍵支撐與波段破位停損價：</strong> 最重要的防守位階為60日籌碼密集峰的下緣 <strong><span class="price-pill">📌 50.94元</span></strong>。若股價能在此區域獲得支撐，則多方格局不變。波段停損價可設定在 <strong><span class="price-pill">📌 50.5元</span> (失守60日POC下緣)</strong>，以避免籌碼結構的破壞。
-*   <strong><span class="bullish-tag">▲ 突破</span>加碼點：</strong> 考量近期賣頂巨鱷的出場價位，若股價能帶量<span class="bullish-tag">▲ 突破</span>並<span class="bullish-tag">▲ 站穩</span> <strong><span class="price-pill">📌 55.5元</span></strong> 以上，則有望確認強勢的攻擊訊號，可視為波段加碼點，目標挑戰近期高點甚至創新高。</p>
-<p><strong>操盤建議：</strong> 建議投資者可維持<span class="bullish-tag">▲ 偏多</span>操作思維。對於尚未進場者，可觀察股價回檔至<span class="price-pill">📌 50.94元</span>至<span class="price-pill">📌 53.12元</span> (60日POC至20日VWAP) 區間的承接力道，若能有效守穩並配合成交量放大，可視為波段介入時機。對於已持有部位者，在不跌破<span class="price-pill">📌 50.94元</span>前，建議持續抱牢，並關注<span class="bullish-tag">▲ 突破</span><span class="price-pill">📌 55.5元</span>後的加碼機會。密切關注外資與代操機構的後續動向。</p>
+<p><strong>多空態勢：</strong> 綜合分析，中鼎目前處於「中長線<span class="bullish-tag">▲ 偏多</span>，短線警惕獲利了結」的複雜局面。<span class="badge badge-hoarder">🔒 長線囤貨</span>大戶及代操機構的重倉<span class="bullish-tag">▲ 鎖碼</span>，以及外資逆勢大買的行動，奠定了中長線的堅實<span class="bullish-tag">▲ 多頭</span>基礎。股價<span class="bullish-tag">▲ 站穩</span>所有主力成本與籌碼密集峰之上，技術面<span class="bullish-tag">▲ 多頭</span>格局確立。然而，兩位<span class="badge badge-swing-sell">🎯 波段賣頂</span>高手的連續<span class="bearish-tag">▼ 出貨</span>，提示短線拉回整理的可能性。</p>
+<p><strong>關鍵操作建議：</strong>
+*   <strong>多方策略：</strong> 建議投資人保持<span class="bullish-tag">▲ 多頭</span>思維。若股價因短期獲利了結而拉回，接近<strong>60日籌碼密集峰上緣(<span class="price-pill">📌 53.03元</span>)或20日VWAP(<span class="price-pill">📌 53.12元</span>)附近</strong>，皆可視為極佳的波段佈局或加碼機會，此區間有強勁支撐。
+*   <strong><span class="bullish-tag">▲ 突破</span>加碼點：</strong> 若股價能<span class="bullish-tag">▲ 突破</span>近期高點並<span class="bullish-tag">▲ 站穩</span><strong><span class="price-pill">📌 55.5元</span></strong>之上，或更進一步<span class="bullish-tag">▲ 突破</span>先前賣頂巨鱷<span class="bearish-tag">▼ 出貨</span>的高點<strong><span class="price-pill">📌 56.6元</span></strong>，將確認新的上攻波段啟動，可考慮積極加碼。
+*   <strong>關鍵破位停損價：</strong> 若股價未能有效<span class="bullish-tag">▲ 站穩</span>上述支撐，並<span class="bearish-tag">▼ 跌破</span><strong><span class="price-pill">📌 52.5元</span></strong>，則可能代表短期<span class="bearish-tag">▼ 賣壓</span>加重或<span class="bullish-tag">▲ 多頭</span>格局暫時受挫，屆時應考慮適度停利或停損，以控制風險。
+*   <strong>風險提示：</strong> 儘管籌碼面強力<span class="bullish-tag">▲ 偏多</span>，但全球宏觀經濟及股市仍受聯準會政策和AI股波動影響，操作上仍需留意大盤系統性風險，並保持彈性。</p>
             </div>
         </div>
 
         <div class="footer">
-            報告產出時間：2026-11-27 16:09:32 ｜ 專案架構：TWSE Multi-Period Chip Agent
+            報告產出時間：2026-11-28 09:46:25 ｜ 專案架構：TWSE Multi-Period Chip Agent
         </div>
     </div>
 

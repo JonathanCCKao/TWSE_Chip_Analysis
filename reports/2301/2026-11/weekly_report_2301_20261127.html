@@ -6,6 +6,11 @@
     <title>【2301】多維度籌碼主力意圖診斷看板 - 2026-11-27</title>
     <!-- ECharts CDN for lightweight interactive candlestick & volume chart -->
     <script src="https://cdn.jsdelivr.net/npm/echarts@5.4.3/dist/echarts.min.js"></script>
+    <script>
+        if (typeof echarts === 'undefined') {
+            document.write('<script src="https://cdnjs.cloudflare.com/ajax/libs/echarts/5.4.3/echarts.min.js"></scr' + 'ipt>');
+        }
+    </script>
     <style>
         :root {
             --bg-color: #f1f5f9;
@@ -948,7 +953,7 @@
                 <h1>【2301 光寶科】多維度籌碼主力意圖戰略週報 (Weekly)</h1>
                 <div class="header-subtitle">
                     <span class="mode-badge mode-weekly">🌌 週末戰略週報</span>
-                    <span class="report-timestamp">🕒 產出時間：2026-11-27 16:04</span>
+                    <span class="report-timestamp">🕒 產出時間：2026-11-28 09:44</span>
                     <span class="sep">｜</span>
                     <span>資料基準日：2026-11-27</span>
                     <span class="sep">｜</span>
@@ -980,13 +985,23 @@
                     紅漲 綠跌 ｜ 滾輪縮放 ｜ 移動游標查看逐日明細
                 </div>
             </div>
-            <div id="kline_chart_2301_光寶科" style="width: 100%; height: 320px;"></div>
+            <div id="kline_chart_2301_光寶科" style="width: 100%; height: 320px;">
+                <noscript><div style="padding:40px 16px;text-align:center;color:#64748b;font-size:13px;">⚠️ 目前預覽環境已停用 JavaScript，請改用 Chrome / Safari 開啟網頁版以查看互動 K 線圖。</div></noscript>
+            </div>
         </div>
 
         <script>
-        (function() {
+        (function initKlineChart(retryCount) {
             var chartDom = document.getElementById('kline_chart_2301_光寶科');
-            if (!chartDom || typeof echarts === 'undefined') return;
+            if (!chartDom) return;
+            if (typeof echarts === 'undefined') {
+                if ((retryCount || 0) < 15) {
+                    setTimeout(function() { initKlineChart((retryCount || 0) + 1); }, 200);
+                } else {
+                    chartDom.innerHTML = '<div style="padding:40px 16px;text-align:center;color:#64748b;font-size:13px;">⚠️ 圖表元件載入受限（可能處於預覽沙盒或離線狀態），請改以瀏覽器開啟完整網頁檢視 K 線圖。</div>';
+                }
+                return;
+            }
             var myChart = echarts.init(chartDom);
 
             var dates = ["2026-08-27", "2026-08-28", "2026-08-31", "2026-09-01", "2026-09-02", "2026-09-03", "2026-09-04", "2026-09-07", "2026-09-08", "2026-09-09", "2026-09-10", "2026-09-11", "2026-09-14", "2026-09-15", "2026-09-16", "2026-09-17", "2026-09-18", "2026-09-21", "2026-09-22", "2026-09-23", "2026-09-24", "2026-09-29", "2026-09-30", "2026-10-01", "2026-10-02", "2026-10-05", "2026-10-06", "2026-10-07", "2026-10-08", "2026-10-12", "2026-10-13", "2026-10-14", "2026-10-15", "2026-10-16", "2026-10-19", "2026-10-20", "2026-10-21", "2026-10-22", "2026-10-23", "2026-10-27", "2026-10-28", "2026-10-29", "2026-10-30", "2026-11-02", "2026-11-03", "2026-11-04", "2026-11-05", "2026-11-06", "2026-11-09", "2026-11-10", "2026-11-11", "2026-11-12", "2026-11-13", "2026-11-16", "2026-11-17", "2026-11-18", "2026-11-19", "2026-11-20", "2026-11-23", "2026-11-24", "2026-11-25", "2026-11-26", "2026-11-27"];
@@ -1297,7 +1312,7 @@
                 <div class="radar-items">
                     <div class="radar-item">
                         <div class="radar-label">>200張大戶</div>
-                        <div class="radar-val">82.0% <span style="font-size:0.75rem;" class="val-red">(+0.10%)</span></div>
+                        <div class="radar-val">82.1% <span style="font-size:0.75rem;" class="val-red">(+0.05%)</span></div>
                     </div>
                     <div class="radar-item">
                         <div class="radar-label"><10張散戶</div>
@@ -1305,7 +1320,7 @@
                     </div>
                     <div class="radar-item">
                         <div class="radar-label">千張大戶持股比</div>
-                        <div class="radar-val">73.8%</div>
+                        <div class="radar-val">73.9%</div>
                     </div>
                     <div class="radar-item">
                         <div class="radar-label">外資持股比</div>
@@ -1317,7 +1332,7 @@
                     </div>
                     <div class="radar-item">
                         <div class="radar-label">集保週基準日</div>
-                        <div class="radar-val" style="font-size:0.82rem;">2026-11-20</div>
+                        <div class="radar-val" style="font-size:0.82rem;">2026-11-27</div>
                     </div>
                 </div>
             </div>
@@ -1344,7 +1359,7 @@
                     </div>
                     <div class="radar-item">
                         <div class="radar-label">殖利率 (Yield)</div>
-                        <div class="radar-val">5.04%</div>
+                        <div class="radar-val">5.12%</div>
                     </div>
                     <div class="radar-item">
                         <div class="radar-label">箱型支撐位階</div>
@@ -1437,7 +1452,7 @@
                     <span>集保股權巨細動態：主力大戶(>200張) ✕ 散戶(<10張) 6個月趨勢戰情室</span>
                 </div>
                 <div style="font-size:0.84rem; color:var(--text-muted);">
-                    基準週：<strong>2026-11-20</strong> ｜ 每週五盤後更新
+                    基準週：<strong>2026-11-27</strong> ｜ 每週五盤後更新
                 </div>
             </div>
 
@@ -1446,20 +1461,20 @@
                 <div class="disp-col disp-col-major">
                     <div class="disp-col-title">
                         <span class="disp-major-title">🔴 【主力大戶 (>200張)】 高度鎖碼看板</span>
-                        <span style="font-size:0.82rem; font-weight:600; color:#dc2626;">週增減 +0.10%</span>
+                        <span style="font-size:0.82rem; font-weight:600; color:#dc2626;">週增減 +0.05%</span>
                     </div>
                     <div class="disp-metrics-row">
                         <div class="disp-metric-item">
                             <span class="disp-m-label">持股比例</span>
-                            <span class="disp-m-val">82.04%</span>
+                            <span class="disp-m-val">82.09%</span>
                         </div>
                         <div class="disp-metric-item">
                             <span class="disp-m-label">大戶人數 (週增減)</span>
-                            <span class="disp-m-val">664 <small style="font-size:0.75rem; color:#dc2626;">(-8)</small></span>
+                            <span class="disp-m-val">653 <small style="font-size:0.75rem; color:#dc2626;">(-11)</small></span>
                         </div>
                         <div class="disp-metric-item">
                             <span class="disp-m-label">人均持股</span>
-                            <span class="disp-m-val">2,812.2 <small style="font-size:0.75rem; color:#64748b;">張/人</small></span>
+                            <span class="disp-m-val">2,861.3 <small style="font-size:0.75rem; color:#64748b;">張/人</small></span>
                         </div>
                     </div>
                 </div>
@@ -1472,11 +1487,11 @@
                     <div class="disp-metrics-row">
                         <div class="disp-metric-item">
                             <span class="disp-m-label">持股比例</span>
-                            <span class="disp-m-val">10.33%</span>
+                            <span class="disp-m-val">10.30%</span>
                         </div>
                         <div class="disp-metric-item">
                             <span class="disp-m-label">散戶人數 (週增減)</span>
-                            <span class="disp-m-val">194,892 <small style="font-size:0.75rem; color:#16a34a;">(-884)</small></span>
+                            <span class="disp-m-val">193,899 <small style="font-size:0.75rem; color:#16a34a;">(-993)</small></span>
                         </div>
                         <div class="disp-metric-item">
                             <span class="disp-m-label">人均持股</span>
@@ -1492,22 +1507,30 @@
             <!-- 3. 籌碼結構診斷條 -->
             <div class="disp-banner disp-banner-neutral">
                 <span>🔄</span>
-                <div><strong>【籌碼良性換手】主力平穩 ✕ 浮額有序整理</strong>：>200張主力大戶變動 +0.10%，<10張散戶變動 -0.03%，籌碼結構維持常態箱型換手。</div>
+                <div><strong>【籌碼良性換手】主力平穩 ✕ 浮額有序整理</strong>：>200張主力大戶變動 +0.05%，<10張散戶變動 -0.03%，籌碼結構維持常態箱型換手。</div>
             </div>
         </div>
 
         <script>
-        (function() {
+        (function initDispersionChart(retryCount) {
             var chartDom = document.getElementById('dispersion_chart_2301_光寶科');
-            if (!chartDom || typeof echarts === 'undefined') return;
+            if (!chartDom) return;
+            if (typeof echarts === 'undefined') {
+                if ((retryCount || 0) < 15) {
+                    setTimeout(function() { initDispersionChart((retryCount || 0) + 1); }, 200);
+                } else {
+                    chartDom.innerHTML = '<div style="padding:40px 16px;text-align:center;color:#64748b;font-size:13px;">⚠️ 圖表元件載入受限，請改以瀏覽器開啟完整網頁檢視趨勢圖。</div>';
+                }
+                return;
+            }
             var myChart = echarts.init(chartDom);
 
-            var dates = ["2026-05-29", "2026-06-05", "2026-06-12", "2026-06-18", "2026-06-26", "2026-07-03", "2026-07-09", "2026-07-17", "2026-07-24", "2026-07-31", "2026-08-07", "2026-08-14", "2026-08-21", "2026-08-28", "2026-09-04", "2026-09-11", "2026-09-18", "2026-09-24", "2026-10-02", "2026-10-08", "2026-10-16", "2026-10-22", "2026-10-30", "2026-11-06", "2026-11-13", "2026-11-20"];
-            var over200 = [82.72, 82.65, 81.85, 81.01, 80.6, 80.74, 80.72, 80.9, 81.07, 80.9, 83.49, 84.09, 84.13, 84.76, 84.37, 83.78, 83.44, 83.21, 82.98, 83.46, 82.73, 82.47, 82.31, 81.81, 81.94, 82.04];
-            var under10 = [10.11, 10.13, 10.84, 11.45, 11.78, 11.67, 11.64, 11.46, 11.31, 11.44, 9.49, 9.03, 8.91, 8.37, 8.6, 9.07, 9.35, 9.48, 9.62, 9.27, 9.88, 10.04, 10.12, 10.45, 10.36, 10.33];
-            var prices = [234.5, 230.0, 217.0, 210.5, 201.5, 219.0, 213.5, 196.5, 214.5, 209.0, 247.0, 267.0, 261.0, 317.5, 308.0, 277.0, 282.0, 287.0, 281.5, 297.5, 264.5, 255.5, 240.5, 198.0, 231.5, 175.5];
-            var over200Cnt = [637, 640, 642, 633, 633, 638, 635, 640, 638, 643, 658, 657, 671, 683, 689, 681, 687, 692, 693, 698, 700, 699, 693, 679, 672, 664];
-            var under10Cnt = [179343, 184016, 194675, 202823, 207660, 205425, 204356, 201554, 198490, 199010, 172722, 167198, 165313, 158576, 163874, 171781, 175239, 178182, 180442, 177152, 187049, 188621, 188986, 197227, 195776, 194892];
+            var dates = ["2026-06-05", "2026-06-12", "2026-06-18", "2026-06-26", "2026-07-03", "2026-07-09", "2026-07-17", "2026-07-24", "2026-07-31", "2026-08-07", "2026-08-14", "2026-08-21", "2026-08-28", "2026-09-04", "2026-09-11", "2026-09-18", "2026-09-24", "2026-10-02", "2026-10-08", "2026-10-16", "2026-10-22", "2026-10-30", "2026-11-06", "2026-11-13", "2026-11-20", "2026-11-27"];
+            var over200 = [82.65, 81.85, 81.01, 80.6, 80.74, 80.72, 80.9, 81.07, 80.9, 83.49, 84.09, 84.13, 84.76, 84.37, 83.78, 83.44, 83.21, 82.98, 83.46, 82.73, 82.47, 82.31, 81.81, 81.94, 82.04, 82.09];
+            var under10 = [10.13, 10.84, 11.45, 11.78, 11.67, 11.64, 11.46, 11.31, 11.44, 9.49, 9.03, 8.91, 8.37, 8.6, 9.07, 9.35, 9.48, 9.62, 9.27, 9.88, 10.04, 10.12, 10.45, 10.36, 10.33, 10.3];
+            var prices = [230.0, 217.0, 210.5, 201.5, 219.0, 213.5, 196.5, 214.5, 209.0, 247.0, 267.0, 261.0, 317.5, 308.0, 277.0, 282.0, 287.0, 281.5, 297.5, 264.5, 255.5, 240.5, 198.0, 231.5, 175.5, 195.5];
+            var over200Cnt = [640, 642, 633, 633, 638, 635, 640, 638, 643, 658, 657, 671, 683, 689, 681, 687, 692, 693, 698, 700, 699, 693, 685, 672, 664, 653];
+            var under10Cnt = [184016, 194675, 202823, 207660, 205425, 204356, 201554, 198490, 199010, 172722, 167198, 165313, 158576, 163874, 171781, 175239, 178182, 180442, 177152, 187049, 188621, 188986, 189647, 195776, 194892, 193899];
 
             var allPcts = over200.concat(under10).filter(function(v) { return v !== null && !isNaN(v); });
             var minPct = allPcts.length ? Math.max(0, Math.floor(Math.min.apply(null, allPcts) - 2)) : 0;
@@ -2518,31 +2541,47 @@
                 </div>
                 
             <div class="analysis-content">
-                <h2>2301 光寶科 機構籌碼戰略週報 (2026-11-27)</h2>
-<h3>一、 集保大戶週趨勢與融資對沖結構驗證</h3>
-<p>本週光寶科(2301)的集保籌碼結構呈現健康集中化的趨勢。逾200張大戶持股比例達82.0%，週增0.10%，而散戶(&lt;10張)持股則微幅減少0.03%至10.3%，顯示籌碼持續從散戶流向大戶手中，有利於股價後續推升。千張大戶持股高達73.76%，反映出高度的法人與實質控盤力道。在資券方面，融資餘額為9,122張，單週微減12張，融資維持相對穩定甚至略減的態勢，並未出現過度浮額<span class="bearish-tag">▼ 套牢</span>的疑慮，整體籌碼沉澱狀況良好。綜合研判，光寶科的集保籌碼結構驗證了主力資金持續進場<span class="bullish-tag">▲ 吸籌</span>的趨勢，且融資壓力不大，為後續行情的發展提供了堅實的籌碼基礎。</p>
-<h3>二、 多週期主力成本階梯與籌碼峰位階</h3>
-<p>檢視光寶科多週期主力成本VWAP，可以發現當前收盤價<span class="price-pill">📌 195.5元</span>，顯著低於各個中長線主力成本區間：20日VWAP <span class="price-pill">📌 213.37元</span>(<span class="val-neg">-8.4%</span>)、60日VWAP <span class="price-pill">📌 252.32元</span>(<span class="val-neg">-22.5%</span>)、120日VWAP <span class="price-pill">📌 247.33元</span>(<span class="val-neg">-21.0%</span>)，以及240日VWAP <span class="price-pill">📌 210.1元</span>(<span class="val-neg">-7.0%</span>)。這暗示目前股價位於近期機構的普遍成本下方，短線存在超跌現象。</p>
-<p>然而，上方壓力亦不容忽視。60日籌碼密集峰(POC)落在<span class="price-pill">📌 280.45~296.3元</span>區間，量佔比達19.27%。這代表股價若要向上反彈，將面臨大量<span class="bearish-tag">▼ 套牢</span>區的解套<span class="bearish-tag">▼ 賣壓</span>，形成一道關鍵的壓力牆。在未有效<span class="bullish-tag">▲ 突破</span>此籌碼峰之前，股價的上行空間將受到限制。因此，雖然目前股價相對於機構成本處於低位，但短期反彈仍需觀察能否有效消化上方壓力。</p>
-<h3>三、 關鍵分點深度解析與消息共振</h3>
-<p>本週光寶科的機構籌碼動態呈現多空交織但偏向<span class="bullish-tag">▲ 多頭</span><span class="bullish-tag">▲ 吸籌</span>的格局。三大法人同步買超合計<span class="val-pos">+4,685張</span>，其中投信單日積極加碼<span class="val-pos">+3,315張</span>，顯示國內法人對光寶科的認養態度積極。八大官股近20日累計買超<span class="val-pos">+4,785張</span>，持續扮演護航角色；委外代操機構更是近5日累計淨買超<span class="val-pos">+5,912張</span>，近20日累計<span class="val-pos">+4,790張</span>，展現波段重倉<span class="bullish-tag">▲ 鎖碼</span>的強烈訊號，這些都提供了股價下檔的堅實支撐。</p>
-<p>從關鍵分點來看，240D<span class="badge badge-hoarder">🔒 長線囤貨</span>大戶如<span class="broker-pill">🏢 台灣摩根士丹利</span>(<span class="val-pos">+85,079張</span>)、<span class="broker-pill">🏢 新加坡商瑞銀</span>(<span class="val-pos">+38,689張</span>)持續展現對光寶科的長期信心。然而，1年回測認證的「<span class="badge badge-swing-sell">🎯 波段賣頂</span>巨鱷」<span class="broker-pill">🏢 永豐金-匯立</span>與<span class="broker-pill">🏢 花旗環球</span>，近5日分別淨<span class="bearish-tag">▼ 出貨</span><span class="val-neg">-922張</span>與<span class="val-neg">-1,879張</span>，系統宏觀訊號提示嚴防高檔見頂<span class="bearish-tag">▼ 賣壓</span>。但值得留意的是，其邏輯驗證顯示兩者均有「左側早賣」的習慣，過去曾出現被軋的情況，暗示其<span class="bearish-tag">▼ 出貨</span>可能為預防性操作，不代表股價立即崩跌，在未跌破5日均線前，宜視為高檔換手預警。</p>
-<p>在日線級別，<span class="broker-pill">🏢 康和</span>證券近1日及近5日均為買超榜首，其中今日淨買超達<span class="val-pos">+3,245張</span>，顯示其在低檔積極承接的企圖心，儘管系統驗證其亦有「左側早買」的傾向，需待股價站回5日均線才能確認止跌轉強。同時，長線買方<span class="broker-pill">🏢 港商麥格理</span>在現價<span class="bearish-tag">▼ 跌破</span>月線後出現5日大賣調節(<span class="val-neg">-5,673張</span>)，賣超佔比達7.1%，應留意停損或轉空<span class="bearish-tag">▼ 賣壓</span>，這可能是短期內的籌碼混亂因素。</p>
-<p>消息面上，本週新聞雖然有提及公司子公司取得新股權的正面消息，但宏觀面則有外資續砍台股、AI股暴跌等<span class="bearish-tag">▼ 偏空</span>訊號。然而，系統判斷「消息平淡／<span class="bearish-tag">▼ 偏空</span>下主力逆勢<span class="bullish-tag">▲ 吸籌</span>」，核心法人與波段抄底高手仍在低檔逆勢承接<span class="bullish-tag">▲ 鎖碼</span>，顯示籌碼面領先基本面表態。這是一種強烈的<span class="bullish-tag">▲ 多頭</span>共振訊號，暗示主力對光寶科的基本面或未來發展有著獨到的見解與信心。</p>
-<h3>四、 下週波段實戰操盤指引</h3>
-<p>綜合以上分析，光寶科的籌碼結構呈現中長線機構資金積極<span class="bullish-tag">▲ 鎖碼</span>、短線有分歧但整體<span class="bullish-tag">▲ 吸籌</span>動能強勁的特徵。儘管有部分波段高手提早賣出，但官股、代操與部分主力分點的逆勢買超，在宏觀消息面保守的背景下更顯意義。</p>
+                <h2>台股機構籌碼戰略週報：光寶科 (2301) 深度解析 (2026-11-27)</h2>
+<h3>總結洞察</h3>
+<p>光寶科（2301）近期籌碼呈現多空交織的複雜局面。儘管宏觀經濟消息面偏保守，AI股面臨震盪，但核心法人、八大官股與代操機構展現出逆勢<span class="bullish-tag">▲ 吸籌</span>的強烈意圖，為股價提供堅實的底部支撐。然而，上方巨大的<span class="bearish-tag">▼ 套牢</span><span class="bearish-tag">▼ 賣壓</span>與部分歷史認證賣頂高手的<span class="bearish-tag">▼ 出貨</span>動作，預示股價短期內將面臨震盪整理，消化籌碼。</p>
+<h3>1. 集保大戶週趨勢與融資對沖結構驗證</h3>
+<p>本週集保大戶持股比例呈現積極訊號。&gt;200張大戶持股比例微幅增加0.05%至82.1%，而&lt;10張散戶比例則下降0.03%至10.3%，顯示籌碼正持續由散戶流向具備影響力的大戶手中，集中度有所提升。這通常被視為股價底部逐漸穩固的跡象。</p>
+<p>融資餘額方面，本週僅微幅減少12張至9,122張，顯示散戶的追高或殺低意願均不明顯，市場槓桿風險不高，有利於籌碼的穩定。在消息面<span class="bearish-tag">▼ 偏空</span>下，融資不增反減，與大戶持股增加形成對沖，進一步驗證了籌碼去散戶化、集中化的趨勢，有利於後續行情的發展。</p>
+<h3>2. 多週期主力成本階梯與60日籌碼峰支撐壓力位階</h3>
+<p>目前光寶科收盤價<span class="price-pill">📌 195.5元</span>，明顯低於多數主力成本區間，上方壓力沉重：
+*   <strong>短週期壓力：</strong> 5日VWAP為<span class="price-pill">📌 194.9元</span> (<span class="val-pos">+0.3%</span>乖離)，20日VWAP為<span class="price-pill">📌 213.37元</span> (<span class="val-neg">-8.4%</span>乖離)，顯示過去20日進場的資金普遍處於虧損狀態。
+*   <strong>中長週期壓力：</strong> 60日VWAP為<span class="price-pill">📌 252.32元</span> (<span class="val-neg">-22.5%</span>乖離)，120日VWAP為<span class="price-pill">📌 247.33元</span> (<span class="val-neg">-21.0%</span>乖離)，乃至240日VWAP <span class="price-pill">📌 210.1元</span> (<span class="val-neg">-7.0%</span>乖離)。這表示中長期而言，大量買盤被<span class="bearish-tag">▼ 套牢</span>，上方解套<span class="bearish-tag">▼ 賣壓</span>不容小覷。
+*   <strong>籌碼密集峰(POC)：</strong> 60日籌碼密集峰落在<span class="price-pill">📌 280.45~296.3元</span>，佔比達19.27%。這個區域代表了過去60天內成交量最大的成本區間，與現價存在高達約43%~51%的巨大落差。這項數據明確指出，光寶科目前正面臨極其沉重的<span class="bearish-tag">▼ 套牢</span>壓力區，在未能有效<span class="bullish-tag">▲ 突破</span>並<span class="bullish-tag">▲ 站穩</span>這些主力成本價位之前，股價的反彈空間將受到嚴重壓抑。</p>
+<p>綜合來看，光寶科當前股價位於各週期主力成本的下方，且遠低於60日籌碼密集峰，表明股價在築底過程中仍需時間消化上方的巨大<span class="bearish-tag">▼ 套牢</span>籌碼。</p>
+<h3>3. 關鍵分點深度解析與消息面交叉驗證</h3>
 <ul>
-<li><strong>多空態勢判斷：</strong> 中長線<span class="bullish-tag">▲ 偏多</span>，短線震盪築底。主力在低檔有高度承接意願，顯示對後市仍抱持樂觀。</li>
-<li><strong>關鍵支撐位：</strong> 短期可觀察5日VWAP <span class="price-pill">📌 194.9元</span>，若能守穩，則下檔有撐。中長線而言，240日VWAP <span class="price-pill">📌 210.1元</span>是重要的機構成本線，收復此價位將有助於扭轉市場信心。</li>
-<li><strong>關鍵壓力位與<span class="bullish-tag">▲ 突破</span>加碼點：</strong> 近期較強的壓力位首先是20日VWAP <span class="price-pill">📌 213.37元</span>。若能帶量<span class="bullish-tag">▲ 突破</span>並<span class="bullish-tag">▲ 站穩</span>此價位，則可視為短線轉強訊號。更具意義的<span class="bullish-tag">▲ 突破</span>加碼點將會是<span class="bullish-tag">▲ 站穩</span>240日VWAP <span class="price-pill">📌 210.1元</span>，代表多數機構持倉開始獲利或打平，解套<span class="bearish-tag">▼ 賣壓</span>減輕，並確立股價可能重新向60日籌碼密集峰(POC) <span class="price-pill">📌 280.45~296.3元</span>挑戰。</li>
-<li><strong>破位停損價：</strong> 建議將收盤價<span class="bearish-tag">▼ 跌破</span>並未能迅速收復 <strong><span class="price-pill">📌 190元</span></strong> 視為短線的破位停損點。若股價持續疲軟<span class="bearish-tag">▼ 跌破</span>此心理關卡，可能引發短線<span class="bullish-tag">▲ 多頭</span>停損<span class="bearish-tag">▼ 賣壓</span>，需重新評估。</li>
+<li><strong>機構<span class="bullish-tag">▲ 多頭</span>底氣：</strong> 在全球科技股震盪與台股外資持續減碼的背景下，光寶科展現出「消息平淡／<span class="bearish-tag">▼ 偏空</span>下主力逆勢<span class="bullish-tag">▲ 吸籌</span>」的強勁訊號。三大法人合計買超4,685張，其中投信單日加碼3,315張，顯示法人對其潛力的高度認同。此外，八大官股近20日累計買超4,785張，代操機構更是在近5日及近20日分別重倉<span class="bullish-tag">▲ 鎖碼</span>5,912張與4,790張。這些數據共同描繪出一個強大的機構防線，為股價提供底部支撐，並鎖定長線籌碼。<span class="badge badge-hoarder">🔒 長線囤貨</span>大戶如<span class="broker-pill">🏢 台灣摩根士丹利</span>、<span class="broker-pill">🏢 新加坡商瑞銀</span>等在240日週期內仍是主要的買超方，進一步鞏固了底部籌碼的穩定性。</li>
+<li><strong>波段高手衝突訊號：</strong><ul>
+<li><strong>賣頂巨鱷警示：</strong> 「<span class="broker-pill">🏢 永豐金-匯立</span>」與「<span class="broker-pill">🏢 花旗環球</span>」這兩位過去1年八度精準賣頂的高手，近5日分別連賣922張與1,879張，釋放高檔見頂<span class="bearish-tag">▼ 賣壓</span>訊號。儘管系統驗證「<span class="broker-pill">🏢 永豐金-匯立</span>」為「左側早賣觀察」，傾向於主升段左側分批調節，其<span class="bearish-tag">▼ 賣壓</span>不必然導致立即崩跌，但仍需警惕其高檔換手預警。</li>
+<li><strong>抄底高手的潛力：</strong> 「<span class="broker-pill">🏢 兆豐-民生</span>」作為歷史抄底高手，近5日雖無明顯進出，但其高勝率的抄底歷史值得關注。</li>
+<li><strong><span class="broker-pill">🏢 港商麥格理</span>的態度轉變：</strong> 先前為240D長線買方的<span class="broker-pill">🏢 港商麥格理</span>，在現價<span class="bearish-tag">▼ 跌破</span>月線後近5日大賣5,673張，賣超佔比達7.1%，這是一個值得留意的<span class="badge badge-swing-warn">⚠️ 破線調節</span>訊號，可能代表部分主力對短期趨勢的轉空看法。</li>
+<li><strong><span class="broker-pill">🏢 康和</span>的左側抄底：</strong> 「<span class="broker-pill">🏢 康和</span>」近5日躍居買超榜首，淨買超3,480張。然而，其被系統驗證為「左側早買觀察」，表明其習慣於回檔段左側分批承接，不代表右側止跌轉強。</li>
 </ul>
-<p>下週操作上，可密切關注量價變化，尤其是在股價回測關鍵支撐時，若有<span class="broker-pill">🏢 康和</span>、<span class="broker-pill">🏢 美商高盛</span>等積極買盤再次進場，且股價能重新<span class="bullish-tag">▲ 站穩</span>5日均線，則可視為波段佈局的機會。在挑戰上方壓力區時，需觀察成交量能否有效放大，以判斷主力是否有意願推升消化<span class="bearish-tag">▼ 套牢</span>籌碼。</p>
+</li>
+<li><strong>新聞共振：</strong> 本週新聞提及光寶科子公司取得股權、榮獲TCSA永續獎項，這些正面消息主要偏向長期基本面利多，短期內對股價的催化作用有限。相對地，宏觀面關於AI股震盪與Fed政策兩難的消息則加劇了市場的觀望氛圍。在這樣的背景下，機構逆勢<span class="bullish-tag">▲ 吸籌</span>的行為更顯現其對公司長期價值的肯定。</li>
+</ul>
+<h3>4. 下週波段實戰操盤指引</h3>
+<p>光寶科下週將處於一個複雜的震盪築底階段。儘管有三大法人、官股與代操機構的強力買盤作為底部支撐，但上方來自各週期VWAP與60日籌碼密集峰的巨大<span class="bearish-tag">▼ 套牢</span>壓力，以及部分認證賣頂高手與<span class="broker-pill">🏢 港商麥格理</span>的調節<span class="bearish-tag">▼ 賣壓</span>，將限制股價的上攻空間。</p>
+<ul>
+<li><strong>多空態勢：</strong> 短線<span class="bearish-tag">▼ 偏空</span>，中長線有望築底。短線受限於上方壓力與籌碼消化需求，恐以箱型整理為主。中長線在機構資金的簇擁下，具備向上<span class="bullish-tag">▲ 突破</span>的潛力，但需時間醞釀。</li>
+<li><strong>關鍵操作點位：</strong><ul>
+<li><strong>支撐觀察區：</strong> 當前機構買盤成本區約在190-<span class="price-pill">📌 195元</span>之間。建議密切觀察此區間的買盤力道。</li>
+<li><strong>波段停損價：</strong> 若股價<span class="bearish-tag">▼ 跌破</span><span class="price-pill">📌 185.0元</span>（前次永豐金左側早賣被軋後的觀察點），則可能引發進一步的停損<span class="bearish-tag">▼ 賣壓</span>，建議波段操作者嚴格執行停損。</li>
+<li><strong><span class="bullish-tag">▲ 突破</span>加碼點：</strong> 在<span class="bullish-tag">▲ 突破</span>20日VWAP <span class="price-pill">📌 213.37元</span>並<span class="bullish-tag">▲ 站穩</span>，同時觀察到認證賣頂高手的<span class="bearish-tag">▼ 賣壓</span>減輕，方可視為轉強訊號，屆時可考慮小量試單。更具確認性的<span class="bullish-tag">▲ 突破</span>則需上攻<span class="price-pill">📌 220元</span>關卡，並有效化解部分壓力。</li>
+</ul>
+</li>
+</ul>
+<p><strong>操作建議：</strong> 由於籌碼面多空交錯，且上方<span class="bearish-tag">▼ 套牢</span>壓力巨大，建議投資者保持謹慎。已持有者可觀察190-<span class="price-pill">📌 195元</span>的支撐效果，若<span class="bearish-tag">▼ 跌破</span><span class="price-pill">📌 185元</span>應嚴格停損。欲進場者，不宜急於左側抄底，應耐心等待股價能站回20日均線（或5MA）上方，並確認<span class="bearish-tag">▼ 賣壓</span>減輕，方考慮右側進場，並密切關注<span class="badge badge-hoarder">🔒 長線囤貨</span>大戶的動向及總體市場情緒的變化。</p>
             </div>
         </div>
 
         <div class="footer">
-            報告產出時間：2026-11-27 16:04:54 ｜ 專案架構：TWSE Multi-Period Chip Agent
+            報告產出時間：2026-11-28 09:44:00 ｜ 專案架構：TWSE Multi-Period Chip Agent
         </div>
     </div>
 
